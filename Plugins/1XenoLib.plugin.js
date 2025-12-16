@@ -3,7 +3,7 @@
  * @description Simple library to complement plugins with shared code without lowering performance. Also adds needed buttons to some plugins.
  * @author 1Lighty
  * @authorId 239513071272329217
- * @version 1.4.27
+ * @version 1.4.28
  * @invite NYvWdN5
  * @donate https://paypal.me/lighty13
  * @source https://github.com/1Lighty/BetterDiscordPlugins/blob/master/Plugins/1XenoLib.plugin.js
@@ -96,20 +96,20 @@ try {
   const HOTFIXES = {
     'className: "react-wrapper", ref: "element"': 'className: "react-wrapper", ref: (e) => {if (!this.refs) this.refs = {}; this.refs.element = e;}',
     '    /** Fired when root node added to DOM */\n    onAdded() {\n        const reactElement = modules__WEBPACK_IMPORTED_MODULE_1__.DiscordModules.ReactDOM.render(modules__WEBPACK_IMPORTED_MODULE_1__.DiscordModules.React.createElement(ReactSetting, Object.assign({\n            title: this.name,\n            type: this.type,\n            note: this.note,\n        }, this.props)), this.getElement());\n\n        if (this.props.onChange) reactElement.props.onChange = this.props.onChange(reactElement);\n        reactElement.forceUpdate();\n    }\n\n    /** Fired when root node removed from DOM */\n    onRemoved() {\n        modules__WEBPACK_IMPORTED_MODULE_1__.DiscordModules.ReactDOM.unmountComponentAtNode(this.getElement());\n    }': ['    /** Fired when root node added to DOM */\n    onAdded() {\n        this.rroot = BdApi.ReactDOM.createRoot(this.getElement());\n        this.rroot.render(modules__WEBPACK_IMPORTED_MODULE_1__.DiscordModules.React.createElement(ReactSetting, Object.assign({\n            title: this.name,\n            type: this.type,\n            note: this.note,\n        }, this.props)));\n\n        const instance = this.rroot?._internalRoot?.current?.child?.stateNode;\n        if (!instance) return;\n        if (this.props.onChange) instance.props.onChange = this.props.onChange(instance);\n        instance.forceUpdate();\n    }\n\n    /** Fired when root node removed from DOM */\n    onRemoved() {\n        this.rroot.unmount();\n    }', '    /** Fired when root node added to DOM */\n    onAdded() {\n        this.rroot = BdApi.ReactDOM.createRoot(this.getElement());\n        this.rroot.render(modules__WEBPACK_IMPORTED_MODULE_1__.DiscordModules.React.createElement(ReactSetting, Object.assign({\n            title: this.name,\n            type: this.type,\n            note: this.note,\n            ref: instance => {\n                if (!instance || !this.props.onChange) return;\n                const inst = this.rroot._internalRoot?.current?.child;\n                if (!inst) return;\n                this._onChange = this.props.onChange(inst.stateNode)\n            }\n        }, this.props, { onChange: (...args) => this._onChange(...args) })));\n    }\n\n    /** Fired when root node removed from DOM */\n    onRemoved() {\n        this.rroot.unmount();\n    }'],
+    '        const wasEnabled = BdApi?.isSettingEnabled("settings", "general", "showToasts");\n        if (wasEnabled) BdApi?.disableSetting("settings", "general", "showToasts");\n        this._reloadPlugins();\n        if (wasEnabled) BdApi?.enableSetting("settings", "general", "showToasts");': ''
   }
 
   let ZLibCode = fs.readFileSync(path.join(__dirname, '0PluginLibrary.plugin.js'), 'utf8');
   let gotChanged = false;
 
   for (const [key, value] of Object.entries(HOTFIXES)) {
-    if (!ZLibCode.includes(key) && (!Array.isArray(value) || !ZLibCode.includes(value[0]))) continue;
-    if (Array.isArray(value)) {
-      if (!ZLibCode.includes(value[0])) continue;
+    if ((Array.isArray(value) && !ZLibCode.includes(value[0]) && !ZLibCode.includes(key)) || (!Array.isArray(value) && !ZLibCode.includes(key))) continue;
+    if (Array.isArray(value) && ZLibCode.includes(value[0])) {
       ZLibCode = ZLibCode.replace(value[0], value[1]);
       gotChanged = true;
       continue;
     }
-    ZLibCode = ZLibCode.replace(key, value);
+    ZLibCode = ZLibCode.replace(key, Array.isArray(value) ? value[1] : value);
     gotChanged = true;
   }
   if (gotChanged) {
@@ -136,7 +136,7 @@ module.exports = (() => {
           twitter_username: ''
         }
       ],
-      version: '1.4.27',
+      version: '1.4.28',
       description: 'Simple library to complement plugins with shared code without lowering performance. Also adds needed buttons to some plugins.',
       github: 'https://github.com/1Lighty',
       github_raw: 'https://raw.githubusercontent.com/1Lighty/BetterDiscordPlugins/master/Plugins/1XenoLib.plugin.js'
@@ -144,7 +144,7 @@ module.exports = (() => {
     changelog: [
       {
         type: 'fixed',
-        items: ['Fixed settings elements not functioning in this lib and MLv2.']
+        items: ['Library dependency check and update check fix.']
       }
     ],
     defaultConfig: [
@@ -241,9 +241,9 @@ module.exports = (() => {
   const buildPlugin = ([Plugin, Api]) => {
     const start = performance.now();
     const { Settings, Modals, Utilities, WebpackModules, DiscordModules, ColorConverter, DiscordClasses, ReactTools, ReactComponents, Logger, PluginUpdater, PluginUtilities, Structs } = Api;
-    const { React, ModalStack, ContextMenuActions, ChannelStore, GuildStore, UserStore, DiscordConstants, PrivateChannelActions, LayerManager, InviteActions, FlexChild, Changelog: ChangelogModal, SelectedChannelStore, SelectedGuildStore, Moment } = DiscordModules;
+    const { ModalStack, ContextMenuActions, ChannelStore, GuildStore, UserStore, DiscordConstants, PrivateChannelActions, LayerManager, InviteActions, FlexChild, Changelog: ChangelogModal, SelectedChannelStore, SelectedGuildStore, Moment } = DiscordModules;
 
-    const { ReactDOM } = BdApi;
+    const { React, ReactDOM } = BdApi;
 
     if (window.__XL_waitingForWatcherTimeout) clearTimeout(window.__XL_waitingForWatcherTimeout);
 
@@ -2662,7 +2662,6 @@ module.exports = (() => {
         if (super.load) super.load();
         try {
           if (!BdApi.Plugins) return; /* well shit what now */
-          if (!BdApi.isSettingEnabled) return;
           const list = BdApi.Plugins.getAll().filter(k => k._XL_PLUGIN || (k.instance && k.instance._XL_PLUGIN)).map(k => k.instance || k);
           for (let p = 0; p < list.length; p++) try {
             BdApi.Plugins.reload(list[p].getName());
@@ -2731,18 +2730,6 @@ module.exports = (() => {
                       setTimeout(() => {
                         try {
                           fs.writeFileSync(path.join(pluginsDir, newFile), body);
-                          if (window.pluginModule && window.pluginModule.loadPlugin) {
-                            BdApi.Plugins.reload(name);
-                            if (newFile !== file) window.pluginModule.loadPlugin(name);
-                            // eslint-disable-next-line curly
-                          } else if (BdApi.version ? !BdApi.isSettingEnabled('settings', 'addons', 'autoReload') : !BdApi.isSettingEnabled('fork-ps-5')) {
-                            // eslint-disable-next-line no-negated-condition
-                            if (newFile !== file) {
-                              // eslint-disable-next-line no-undef
-                              BdApi.showConfirmationModal('Hmm', 'You must reload in order to finish plugin installation', { onConfirm: () => location.reload() });
-                              isPluginEnabled = false;
-                            } else BdApi.Plugins.reload(name);
-                          }
                           if (isPluginEnabled) setTimeout(() => BdApi.Plugins.enable(name), 3000);
                         } catch (e) { }
                       }, 1000);
