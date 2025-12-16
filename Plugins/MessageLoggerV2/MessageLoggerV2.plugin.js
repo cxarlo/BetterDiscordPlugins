@@ -1,6 +1,6 @@
 /**
  * @name MessageLoggerV2
- * @version 1.9.7
+ * @version 1.9.8
  * @invite NYvWdN5
  * @donate https://paypal.me/lighty13
  * @website https://1lighty.github.io/BetterDiscordStuff/?plugin=MessageLoggerV2
@@ -39,12 +39,14 @@ const MLV2_TYPE_L1 = Symbol('MLV2_TYPE_L1');
 const MLV2_TYPE_L2 = Symbol('MLV2_TYPE_L2');
 const MLV2_TYPE_L3 = Symbol('MLV2_TYPE_L3');
 
+const { React } = BdApi;
+
 module.exports = class MessageLoggerV2 {
   getName() {
     return 'MessageLoggerV2';
   }
   getVersion() {
-    return '1.9.7';
+    return '1.9.8';
   }
   getAuthor() {
     return 'Lighty';
@@ -77,7 +79,7 @@ module.exports = class MessageLoggerV2 {
       let iZeresPluginLibrary = BdApi.Plugins.get('ZeresPluginLibrary');
       if (iXenoLib && iXenoLib.instance) iXenoLib = iXenoLib.instance;
       if (iZeresPluginLibrary && iZeresPluginLibrary.instance) iZeresPluginLibrary = iZeresPluginLibrary.instance;
-      if (isOutOfDate(iXenoLib, '1.4.25')) XenoLibOutdated = true;
+      if (isOutOfDate(iXenoLib, '1.4.28')) XenoLibOutdated = true;
       if (isOutOfDate(iZeresPluginLibrary, '2.0.23')) ZeresPluginLibraryOutdated = true;
     }
     if (/* !global.XenoLib || !global.ZeresPluginLibrary || XenoLibOutdated || ZeresPluginLibraryOutdated */!BdApi.Plugins.get('XenoLib') || XenoLibOutdated) {
@@ -128,7 +130,8 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         title: 'Fixed',
         type: 'fixed',
         items: [
-          'Fixed an internal Discord change causing the logger to malfunction, not properly showing edits and deletes anymore.',
+          'Fixed deletes not showing.',
+          'Somewhat fixed log button not showing consistently or at all'
         ]
       }
     ];
@@ -560,7 +563,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
 
     const chatContent = ZeresPluginLibrary.WebpackModules.getByProps('chatContent');
     this.observer.chatContentClass = ((chatContent && chatContent.chatContent) || 'chat-3bRxxu').split(/ /g)[0];
-    this.observer.chatClass = 'chat-3bRxxu';
+    this.observer.chatClass = 'f75fb00fb7356cbe-chat';
     this.observer.titleClass = !chatContent ? 'ERROR-CLASSWTF' : ZeresPluginLibrary.WebpackModules.getByProps('title', 'chatContent').title.split(/ /g)[0];
     this.observer.containerCozyClass = this.safeGetClass(() => ZeresPluginLibrary.WebpackModules.getByProps('containerCozyBounded').containerCozyBounded.split(/ /g)[0], 'containerCozyBounded');
 
@@ -1097,7 +1100,15 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     let isChat = false;
     let isTitle = false;
     for (const change of addedNodes) {
-      if ((isTitle = isChat = typeof change.className === 'string' && change.className.indexOf(this.observer.chatClass) !== -1) || (isChat = typeof change.className === 'string' && change.className.indexOf(this.observer.chatContentClass) !== -1) || (isTitle = typeof change.className === 'string' && change.className.indexOf(this.observer.titleClass) !== -1) || (change.style && change.style.cssText === 'border-radius: 2px; background-color: rgba(114, 137, 218, 0);') || (typeof change.className === 'string' && change.className.indexOf(this.observer.containerCozyClass) !== -1)) {
+      //  || (isChat = typeof change.className === 'string' && change.className.indexOf(this.observer.chatContentClass) !== -1) || (isTitle = typeof change.className === 'string' && change.className.indexOf(this.observer.titleClass) !== -1) || (change.style && change.style.cssText === 'border-radius: 2px; background-color: rgba(114, 137, 218, 0);') || (typeof change.className === 'string' && change.className.indexOf(this.observer.containerCozyClass) !== -1)
+      if (
+        // check if we went from non chat to chat
+        (isTitle = isChat = (change.classList?.contains(this.observer.chatClass) || change.firstElementChild?.classList?.contains(this.observer.chatClass)))
+        ||
+        (isChat = (change.classList?.contains(this.observer.chatContentClass)))
+        ||
+        (isTitle = (change.classList?.contains(this.observer.titleClass)))
+      ) {
         try {
           if (isChat) {
             this.selectedChannel = this.getSelectedTextChannel();
@@ -1106,7 +1117,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
           }
           if (!this.selectedChannel) return ZeresPluginLibrary.Logger.warn(this.getName(), 'Chat was loaded but no text channel is selected');
           if (isTitle && this.settings.showOpenLogsButton) {
-            let srch = change.querySelector('div[class*="search_"]');
+            let srch = change.querySelector('div[class*="-search"]');
             if (!srch) return ZeresPluginLibrary.Logger.warn(this.getName(), 'Observer caught title loading, but no search bar was found! Open Logs button will not show!');
             if (this.channelLogButton && srch.parentElement) {
               srch.parentElement.insertBefore(this.channelLogButton, srch); // memory leak..?
@@ -1658,7 +1669,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
               let sz = 0;
               for (let image of savedImages) ;
               const size = humanFileSize(this.nodeModules.fs.statSync(this.settings.imageCacheDir).size);
-              ZeresPluginLibrary.Modals.showModal('Move images', ZeresPluginLibrary.DiscordModules.React.createElement(ZeresPluginLibrary.DiscordModules.TextElement.default, { color: ZeresPluginLibrary.DiscordModules.TextElement.Colors.PRIMARY, children: [`Would you like to move ${savedImages.length} images from the old folder to the new? Size of all images is ${size}.`] }), {
+              ZeresPluginLibrary.Modals.showModal('Move images', React.createElement(ZeresPluginLibrary.DiscordModules.TextElement.default, { color: ZeresPluginLibrary.DiscordModules.TextElement.Colors.PRIMARY, children: [`Would you like to move ${savedImages.length} images from the old folder to the new? Size of all images is ${size}.`] }), {
                 confirmText: 'Yes',
                 onConfirm: () => {}
               });
@@ -2094,7 +2105,6 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     this.channelLogButton.remove();
   }
   showLoggerHelpModal(initial = false) {
-    const { React } = BdApi;
     BdApi.UI.showConfirmationModal('Logger help',
       React.createElement('div', { className: this.multiClasses.defaultColor, style: { maxHeight: '0', minHeight: '60vh' } },
         initial ? React.createElement('span', { style: { fontSize: '40px' } },
@@ -2234,7 +2244,6 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
 
       messageCounts.push(messageCount);
     }
-    const { React } = BdApi;
     const addLine = (name, value) => {
       elements.push(
         React.createElement('div', { className: this.multiClasses.defaultColor, key: name },
@@ -2430,7 +2439,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
       return this.showToast('Not implemented yet');
       return openMediaViewer(options);
     }
-    XenoLib.ModalStack.openModal(props => ZeresPluginLibrary.DiscordModules.React.createElement(this.createModal.confirmationModal, Object.assign({}, options, props, options.onClose ? { onClose: options.onClose } : {})), { modalKey: name });
+    XenoLib.ModalStack.openModal(props => React.createElement(this.createModal.confirmationModal, Object.assign({}, options, props, options.onClose ? { onClose: options.onClose } : {})), { modalKey: name });
   }
   getMessageAny(id) {
     const record = this.messageRecord[id];
@@ -3104,15 +3113,15 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     const dateFormat = ZeresPluginLibrary.WebpackModules.getModule(e => typeof e === 'function' && e?.toString()?.includes('sameDay'), { searchExports: true });
     //const i18n = ZeresPluginLibrary.WebpackModules.find(e => e.Messages && e.Messages.HOME);
     /* suck it you retarded asshole devilfuck */
-    const SuffixEdited = ZeresPluginLibrary.DiscordModules.React.memo(e => {
+    const SuffixEdited = React.memo(e => {
       const text = (e.__MLV2_hasMore === 'before' || e.__MLV2_hasMore === 'after') ? `There are ${e.__MLV2_numHidden} more edited messages ${e.__MLV2_hasMore} this one! Click to show!` : null;
-      return ZeresPluginLibrary.DiscordModules.React.createElement(
+      return React.createElement(
         Tooltip,
         {
-          text: [(e.timestamp && e.__MLV2_shouldShow ? dateFormat(e.timestamp, 'LLLL') : null), text && ZeresPluginLibrary.DiscordModules.React.createElement('br'), text],
+          text: [(e.timestamp && e.__MLV2_shouldShow ? dateFormat(e.timestamp, 'LLLL') : null), text && React.createElement('br'), text],
           shouldShow: e.__MLV2_shouldShow || !!text
         },
-        tt => ZeresPluginLibrary.DiscordModules.React.createElement(
+        tt => React.createElement(
           'time',
           Object.assign({
             dateTime: e.timestamp ? e.timestamp.toISOString() : null,
@@ -3152,7 +3161,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
       })()
       if (parse) {
         return function parseContent() {
-          const ReactDispatcher = Object.values(ZeresPluginLibrary.DiscordModules.React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE).find(e => e.useState);
+          const ReactDispatcher = Object.values(React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE).find(e => e.useState);
           const oUseMemo = ReactDispatcher.useMemo;
           ReactDispatcher.useMemo = memo => memo();
           try {
@@ -3176,11 +3185,13 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
       }));
       return ZeresPluginLibrary.Utilities.findInTree(this.getReactInstance(el), e => ((typeof e?.memoizedProps?.renderContentOnly) === 'boolean'), { walkable: ['return'] })?.elementType
     })();
+
     if (!MessageContent || !MemoMessage) return XenoLib.Notifications.error('Failed to patch message components, edit history and deleted tint will not show!', { timeout: 0 });
+    const useStateConstant = {};
     this.unpatches.push(
       this.Patcher.after(MessageContent, 'type', (_, [props], ret) => {
-        const forceUpdate = ZeresPluginLibrary.DiscordModules.React.useState()[1];
-        ZeresPluginLibrary.DiscordModules.React.useEffect(
+        const forceUpdate = React.useState(useStateConstant)[1];
+        React.useEffect(
           () => {
             function callback(e) {
               if (!e || !e.id || e.id === props.message.id) {
@@ -3201,12 +3212,12 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         const createEditedMessage = (edit, editNum, options = { isSingular: false, noSuffix: false, hasMore: 'none', numHidden: 0 }) => {
           const { isSingular = false, noSuffix = false, hasMore = 'none', numHidden = 0 } = options;
 
-          const result = ZeresPluginLibrary.DiscordModules.React.createElement(() => // avoiding breaking the rules of react hooks :p
+          const result = React.createElement(() => // avoiding breaking the rules of react hooks :p
             [
               parseContent({ channel_id: props.message.channel_id, mentionChannels: props.message.mentionChannels, content: edit.content, embeds: [], isCommandType: () => false, hasFlag: () => false }, {}).content,
               noSuffix
                 ? null
-                : ZeresPluginLibrary.DiscordModules.React.createElement(SuffixEdited, {
+                : React.createElement(SuffixEdited, {
                   timestamp: new Date(edit.time),
                   __MLV2_hasMore: hasMore,
                   __MLV2_numHidden: numHidden,
@@ -3220,10 +3231,10 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
             ]
           );
 
-          return ZeresPluginLibrary.DiscordModules.React.createElement(
+          return React.createElement(
             XenoLib.ReactComponents.ErrorBoundary,
             { label: 'Edit history' },
-            editNum === -1 ? result : ZeresPluginLibrary.DiscordModules.React.createElement(
+            editNum === -1 ? result : React.createElement(
               Tooltip,
               {
                 text: !!record.delete_data ? null : 'Edited: ' + this.createTimeStamp(edit.time),
@@ -3232,7 +3243,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
                 shouldShow: !isSingular
               },
               _ =>
-                ZeresPluginLibrary.DiscordModules.React.createElement(
+                React.createElement(
                   'div', // required div for the tooltip to properly position itself
                   {
                     ..._,
@@ -3256,7 +3267,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         if ((!this.settings.showEditedMessages && !modifier?.showAllEdits) || record.edits_hidden) {
           ret.props.children = [
             oContent,
-            ZeresPluginLibrary.DiscordModules.React.createElement(SuffixEdited, {
+            React.createElement(SuffixEdited, {
               timestamp: new Date(props.message.editedTimestamp),
               __MLV2_hasMore: 'before',
               __MLV2_numHidden: record.edit_history.length,
@@ -3317,13 +3328,15 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
           else if (XenoLib._.isObject(oRef)) oRef.current = e;
         };
         return ret;
-      } catch (err) { }
+      } catch (err) {
+        ZeresPluginLibrary.Logger.stacktrace(_self.getName(), 'Error in Message replacement component', err);
+      }
       return null;
     }
     this.unpatches.push(
       this.Patcher.after(MemoMessage, 'type', (_, [props], ret) => {
-        const forceUpdate = ZeresPluginLibrary.DiscordModules.React.useState()[1];
-        ZeresPluginLibrary.DiscordModules.React.useEffect(
+        const forceUpdate = React.useState(useStateConstant)[1];
+        React.useEffect(
           () => {
             function callback(e) {
               if (!e || !e.id || e.id === props.message.id) forceUpdate({});
@@ -3340,7 +3353,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         if (props.message.editedTimestamp) record.message.edited_timestamp = new Date(props.message.editedTimestamp).getTime();
         if (!record.delete_data) return;
         if (this.noTintIds.indexOf(props.message.id) !== -1) return;
-        const message = ZeresPluginLibrary.Utilities.findInReactTree(ret, e => e && typeof e?.props?.className === 'string' && ~e?.props?.className?.indexOf(messageClass));
+        const message = ZeresPluginLibrary.Utilities.findInReactTree(ret, e => e && typeof e?.props?.className === 'string' && ~e?.props?.className?.split(' ').indexOf(messageClass));
         if (!message) return;
         message.props.className += ' ' + (this.settings.useAlternativeDeletedStyle ? this.style.deletedAlt : this.style.deleted);
         message.props.__MLV2_deleteTime = record.delete_data.time;
@@ -4045,7 +4058,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
               renderAudioComponent: ZeresPluginLibrary.WebpackModules.getByProps('renderAudioComponent').renderAudioComponent,
               renderMaskedLinkComponent: ZeresPluginLibrary.WebpackModules.getByProps('renderMaskedLinkComponent').renderMaskedLinkComponent
             };
-            ZeresPluginLibrary.DiscordModules.ReactDOM.render(ZeresPluginLibrary.DiscordModules.React.createElement(ZeresPluginLibrary.WebpackModules.getByDisplayName('Embed'), embedBase), ddiv);
+            ZeresPluginLibrary.DiscordModules.ReactDOM.render(React.createElement(ZeresPluginLibrary.WebpackModules.getByDisplayName('Embed'), embedBase), ddiv);
           }
           contentDiv.appendChild(ddiv);
         }
@@ -4334,7 +4347,6 @@ Example: server: BetterDiscord, message: heck
 
 Pro tip: Right clicking the icon will filter the messages to the current channel.`;
 
-      const { React } = BdApi;
       BdApi.UI.showConfirmationModal('Filter help',
         React.createElement('div', { className: this.multiClasses.defaultColor },
           React.createElement('p', {
