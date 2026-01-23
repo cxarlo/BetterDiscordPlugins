@@ -3,7 +3,7 @@
  * @description Simple library to complement plugins with shared code without lowering performance. Also adds needed buttons to some plugins.
  * @author 1Lighty
  * @authorId 239513071272329217
- * @version 1.4.28
+ * @version 1.4.29
  * @invite NYvWdN5
  * @donate https://paypal.me/lighty13
  * @source https://github.com/1Lighty/BetterDiscordPlugins/blob/master/Plugins/1XenoLib.plugin.js
@@ -136,7 +136,7 @@ module.exports = (() => {
           twitter_username: ''
         }
       ],
-      version: '1.4.28',
+      version: '1.4.29',
       description: 'Simple library to complement plugins with shared code without lowering performance. Also adds needed buttons to some plugins.',
       github: 'https://github.com/1Lighty',
       github_raw: 'https://raw.githubusercontent.com/1Lighty/BetterDiscordPlugins/master/Plugins/1XenoLib.plugin.js'
@@ -144,7 +144,7 @@ module.exports = (() => {
     changelog: [
       {
         type: 'fixed',
-        items: ['Library dependency check and update check fix.']
+        items: ['Fixed notifs.']
       }
     ],
     defaultConfig: [
@@ -960,7 +960,7 @@ module.exports = (() => {
         else if (item.SMALL) ButtonOptions.ButtonSizes = item;
         else if (typeof item === 'function') {
           const funcString = item.toString();
-          if (funcString.includes('.disabledButtonWrapper,')) ButtonOptions.Button = item;
+          if (funcString.includes(',buttonRef:')) ButtonOptions.Button = item;
           // else if (funcString.match(/to:\w,onClick:\w,onMouseUp:\w/)) ButtonOptions.ButtonLink = item;
           // else console.log('Unknown item!', item);
         }
