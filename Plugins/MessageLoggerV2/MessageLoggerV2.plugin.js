@@ -1,6 +1,6 @@
 /**
  * @name MessageLoggerV2
- * @version 1.9.8
+ * @version 1.9.9
  * @invite NYvWdN5
  * @donate https://paypal.me/lighty13
  * @website https://1lighty.github.io/BetterDiscordStuff/?plugin=MessageLoggerV2
@@ -46,7 +46,7 @@ module.exports = class MessageLoggerV2 {
     return 'MessageLoggerV2';
   }
   getVersion() {
-    return '1.9.8';
+    return '1.9.9';
   }
   getAuthor() {
     return 'Lighty';
@@ -79,7 +79,7 @@ module.exports = class MessageLoggerV2 {
       let iZeresPluginLibrary = BdApi.Plugins.get('ZeresPluginLibrary');
       if (iXenoLib && iXenoLib.instance) iXenoLib = iXenoLib.instance;
       if (iZeresPluginLibrary && iZeresPluginLibrary.instance) iZeresPluginLibrary = iZeresPluginLibrary.instance;
-      if (isOutOfDate(iXenoLib, '1.4.28')) XenoLibOutdated = true;
+      if (isOutOfDate(iXenoLib, '1.4.29')) XenoLibOutdated = true;
       if (isOutOfDate(iZeresPluginLibrary, '2.0.23')) ZeresPluginLibraryOutdated = true;
     }
     if (/* !global.XenoLib || !global.ZeresPluginLibrary || XenoLibOutdated || ZeresPluginLibraryOutdated */!BdApi.Plugins.get('XenoLib') || XenoLibOutdated) {
@@ -130,8 +130,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         title: 'Fixed',
         type: 'fixed',
         items: [
-          'Fixed deletes not showing.',
-          'Somewhat fixed log button not showing consistently or at all'
+          'Logger crashing Discord after latest update.'
         ]
       }
     ];
@@ -563,7 +562,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
 
     const chatContent = ZeresPluginLibrary.WebpackModules.getByProps('chatContent');
     this.observer.chatContentClass = ((chatContent && chatContent.chatContent) || 'chat-3bRxxu').split(/ /g)[0];
-    this.observer.chatClass = 'f75fb00fb7356cbe-chat';
+    this.observer.chatClass = XenoLib.getClass('chatContent chat') || 'chat_f75fb0';
     this.observer.titleClass = !chatContent ? 'ERROR-CLASSWTF' : ZeresPluginLibrary.WebpackModules.getByProps('title', 'chatContent').title.split(/ /g)[0];
     this.observer.containerCozyClass = this.safeGetClass(() => ZeresPluginLibrary.WebpackModules.getByProps('containerCozyBounded').containerCozyBounded.split(/ /g)[0], 'containerCozyBounded');
 
@@ -602,7 +601,15 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
 
 
 
-    this.dispatcher = ZeresPluginLibrary.WebpackModules.find(e => e.dispatch && e.subscribe);
+    // unsure if this will stay functional, but last time I checked this ONLY returns the correct dispatcher since this specific filter
+    // only matches all stores that use the main dispatcher
+    this.dispatcher = BdApi.Webpack.getByKeys('_dispatcher')?._dispatcher;
+
+    if (!this.dispatcher) {
+      ZeresPluginLibrary.Logger.err(this.getName(), 'Failed to find Dispatcher!');
+      XenoLib.Notifications.error(`[**${this.getName()}**] Failed to start plugin! Critical error: dispatcher not found!`);
+      return;
+    }
 
     this.unpatches.push(
       this.Patcher.instead(
@@ -1117,7 +1124,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
           }
           if (!this.selectedChannel) return ZeresPluginLibrary.Logger.warn(this.getName(), 'Chat was loaded but no text channel is selected');
           if (isTitle && this.settings.showOpenLogsButton) {
-            let srch = change.querySelector('div[class*="-search"]');
+            let srch = change.querySelector('div[class*="-search"]') || change.querySelector('div[class*="search_"]');
             if (!srch) return ZeresPluginLibrary.Logger.warn(this.getName(), 'Observer caught title loading, but no search bar was found! Open Logs button will not show!');
             if (this.channelLogButton && srch.parentElement) {
               srch.parentElement.insertBefore(this.channelLogButton, srch); // memory leak..?
