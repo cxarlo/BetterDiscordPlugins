@@ -1,4 +1,4 @@
-//META{"name":"BetterTypingUsers","source":"https://github.com/1Lighty/BetterDiscordPlugins/blob/master/Plugins/BetterTypingUsers/BetterTypingUsers.plugin.js","website":"https://1lighty.github.io/BetterDiscordStuff/?plugin=BetterTypingUsers","authorId":"239513071272329217","invite":"NYvWdN5","donate":"https://paypal.me/lighty13"}*//
+//META{"name":"BetterTypingUsers","description":"This plugin is EOL","source":"https://github.com/1Lighty/BetterDiscordPlugins/blob/master/Plugins/BetterTypingUsers/BetterTypingUsers.plugin.js","website":"https://1lighty.github.io/BetterDiscordStuff/?plugin=BetterTypingUsers","authorId":"239513071272329217","invite":"NYvWdN5","donate":"https://paypal.me/lighty13"}*//
 /*@cc_on
 @if (@_jscript)
 
@@ -27,6 +27,18 @@
  * All rights reserved.
  * Code may not be redistributed, modified or otherwise taken without explicit permission.
  */
+
+module.exports = class BetterTypingUsers {
+  load() {
+  }
+  start() {
+  }
+  stop() {
+  }
+}
+
+return;
+
 module.exports = (() => {
   /* Setup */
   const config = {
