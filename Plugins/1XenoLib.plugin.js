@@ -1,14 +1,22 @@
 /**
  * @name XenoLib
- * @description Simple library to complement plugins with shared code without lowering performance. Also adds needed buttons to some plugins.
+ * @description This library is EOL, please delete it
  * @author 1Lighty
  * @authorId 239513071272329217
- * @version 1.4.34
+ * @version 1.4.35
  * @invite NYvWdN5
  * @donate https://paypal.me/lighty13
  * @source https://github.com/1Lighty/BetterDiscordPlugins/blob/master/Plugins/1XenoLib.plugin.js
  * @updateUrl https://raw.githubusercontent.com/1Lighty/BetterDiscordPlugins/master/Plugins/1XenoLib.plugin.js
  */
+
+/*
+===============================================
+IF YOU SEE THIS, DO NOT INSTALL THIS LIBRARY, OR IF IT IS INSTALLED, REMOVE IT
+IT IS EOL, NO LONGER SUPPORTED!!!!!
+===============================================
+*/
+
 /*@cc_on
 @if (@_jscript)
 
@@ -33,10 +41,28 @@
 
 @else@*/
 /*
- * Copyright © 2019-2025, _Lighty_
+ * Copyright © 2019-2026, 1Lighty
  * All rights reserved.
  * Code may not be redistributed, modified or otherwise taken without explicit permission.
  */
+
+
+module.exports = class CXenoLib {
+  announceEOL() {
+    BdApi.UI.showConfirmationModal('XenoLib EOL', 'Hi! You currently have XenoLib and ZeresPluginLibrary installed, both of which are EOL, unsupported. It is advisable you go to plugins section and delete both of them as they will likely cause issues if they remain installed.', { cancelText: null });
+  }
+
+  load() {
+    this.announceEOL();
+  }
+  start() {
+    this.announceEOL();
+  }
+  stop() {
+  }
+}
+
+return;
 
 // eslint-disable-next-line no-undef
 if (window.__XL_waitingForWatcherTimeout && !window.__XL_assumingZLibLoaded) clearTimeout(window.__XL_waitingForWatcherTimeout);
@@ -2668,9 +2694,9 @@ module.exports = (() => {
           if (!BdApi.Plugins) return; /* well shit what now */
           const list = BdApi.Plugins.getAll().filter(k => k._XL_PLUGIN || (k.instance && k.instance._XL_PLUGIN)).map(k => k.instance || k);
           for (let p = 0; p < list.length; p++) try {
-            setTimeout(() => {
+            requestAnimationFrame(() => {
               BdApi.Plugins.reload(list[p].getName());
-            }, 100);
+            });
           } catch (e) {
             try {
               Logger.stacktrace(`Failed to reload plugin ${list[p].getName()}`, e);
