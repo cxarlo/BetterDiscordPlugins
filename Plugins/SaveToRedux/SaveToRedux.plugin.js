@@ -1,5 +1,6 @@
 /**
  * @name SaveToRedux
+ * @description This plugin is EOL
  * @version 2.4.12
  * @invite NYvWdN5
  * @donate https://paypal.me/lighty13
@@ -36,6 +37,18 @@
  * All rights reserved.
  * Code may not be redistributed, modified or otherwise taken without explicit permission.
  */
+
+module.exports = class SaveToRedux {
+  load() {
+  }
+  start() {
+  }
+  stop() {
+  }
+}
+
+return;
+
 module.exports = (() => {
   /* Setup */
   const config = {
