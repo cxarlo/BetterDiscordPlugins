@@ -1103,7 +1103,7 @@ module.exports = class MessageLoggerV2 {
         if (BdApi.Utils.semverCompare(this.getVersion(), remoteVersion) !== 1) return;
         const { writeFileSync } = require('fs');
         const { join, basename } = require('path');
-        writeFileSync(join(__dirname, basename(__filename)));
+        writeFileSync(join(__dirname, basename(__filename)), data);
         BdApi.UI.showNotification({ title: this.getName(), content: `Successfully updated!`, type: 'success' });
         BdApi.Plugins.reload(this.getName());
       })
