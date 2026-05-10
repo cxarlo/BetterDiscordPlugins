@@ -1,6 +1,6 @@
 /**
  * @name MessageLoggerV2
- * @version 1.10.1
+ * @version 1.10.2
  * @invite NYvWdN5
  * @donate https://paypal.me/lighty13
  * @website https://1lighty.github.io/BetterDiscordStuff/?plugin=MessageLoggerV2
@@ -48,7 +48,7 @@ module.exports = class MessageLoggerV2 {
     return 'MessageLoggerV2';
   }
   getVersion() {
-    return '1.10.1';
+    return '1.10.2';
   }
   getAuthor() {
     return 'Lighty';
@@ -105,6 +105,13 @@ module.exports = class MessageLoggerV2 {
           'I have combed thru the plugin and removed its XenoLib and ZeresPluginLibrary dependency to ease the burden on users, make the whole experience easier, as well as to finally ditch the deprecated ZeresPluginLibrary which might have been causing issues.',
           '----> **YOU CAN SAFELY DELETE XENOLIB AND ZERESPLUGINLIBRARY** <----',
           'It is advisable you do to avoid issues.'
+        ]
+      },
+      {
+        title: 'Added',
+        type: 'added',
+        items: [
+          'Added back notification settings for servers which were inadvertently vanished in the transition, oops'
         ]
       }
     ];
@@ -1544,6 +1551,45 @@ module.exports = class MessageLoggerV2 {
           ]
         },
         {
+          name: 'Toast notifications for servers',
+          id: this.obfuscatedClass('ml2-settings-toast-guilds'),
+          type: 'category',
+          collapsible: true,
+          shown: false,
+          settings: [
+            {
+              name: 'Message sent',
+              id: 'sent',
+              type: 'switch',
+              value: this.settings.toastToggles.sent
+            },
+            {
+              name: 'Message edited',
+              id: 'edited',
+              type: 'switch',
+              value: this.settings.toastToggles.edited
+            },
+            {
+              name: 'Message deleted',
+              id: 'deleted',
+              type: 'switch',
+              value: this.settings.toastToggles.deleted
+            },
+            {
+              name: 'Ghost pings',
+              id: 'ghostPings',
+              type: 'switch',
+              value: this.settings.toastToggles.ghostPings
+            },
+            {
+              name: 'Disable toasts for local user (yourself)',
+              id: 'disableToastsForLocal',
+              type: 'switch',
+              value: this.settings.toastToggles.disableToastsForLocal
+            }
+          ]
+        },
+        {
           name: 'Toast notifications for DMs',
           id: this.obfuscatedClass('ml2-settings-toast-dms'),
           type: 'category',
@@ -1554,37 +1600,25 @@ module.exports = class MessageLoggerV2 {
               name: 'Message sent',
               id: 'sent',
               type: 'switch',
-              value: this.settings.toastTogglesDMs.sent,
-              onChange: val => {
-                this.settings.toastTogglesDMs.sent = val;
-              }
+              value: this.settings.toastTogglesDMs.sent
             },
             {
               name: 'Message edited',
               id: 'edited',
               type: 'switch',
-              value: this.settings.toastTogglesDMs.edited,
-              onChange: val => {
-                this.settings.toastTogglesDMs.edited = val;
-              }
+              value: this.settings.toastTogglesDMs.edited
             },
             {
               name: 'Message deleted',
               id: 'deleted',
               type: 'switch',
-              value: this.settings.toastTogglesDMs.deleted,
-              onChange: val => {
-                this.settings.toastTogglesDMs.deleted = val;
-              }
+              value: this.settings.toastTogglesDMs.deleted
             },
             {
               name: 'Ghost pings',
               id: 'ghostPings',
               type: 'switch',
-              value: this.settings.toastTogglesDMs.ghostPings,
-              onChange: val => {
-                this.settings.toastTogglesDMs.ghostPings = val;
-              }
+              value: this.settings.toastTogglesDMs.ghostPings
             }
           ]
         },
@@ -1766,6 +1800,10 @@ module.exports = class MessageLoggerV2 {
       ],
       onChange: (category, id, value) => {
         switch (category) {
+          case this.obfuscatedClass('ml2-settings-toast-guilds'): {
+            this.settings.toastToggles[id] = value;
+            break;
+          }
           case this.obfuscatedClass('ml2-settings-toast-dms'): this.settings.toastTogglesDMs[id] = value;
           case this.obfuscatedClass('ml2-settings-caps'):
           case this.obfuscatedClass('ml2-settings-usercounter'): break;
