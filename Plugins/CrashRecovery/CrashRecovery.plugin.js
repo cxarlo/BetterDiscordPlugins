@@ -1,5 +1,6 @@
 /**
  * @name CrashRecovery
+ * @description This plugin is EOL
  * @version 1.0.6
  * @invite NYvWdN5
  * @donate https://paypal.me/lighty13
@@ -32,6 +33,18 @@
  * All rights reserved.
  * Code may not be redistributed, modified or otherwise taken without explicit permission.
  */
+
+module.exports = class CrashRecovery {
+  load() {
+  }
+  start() {
+  }
+  stop() {
+  }
+}
+
+return;
+
 module.exports = (() => {
   /* Setup */
   const config = {
