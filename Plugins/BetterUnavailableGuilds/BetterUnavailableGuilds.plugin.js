@@ -1,4 +1,4 @@
-//META{"name":"BetterUnavailableGuilds","source":"https://github.com/1Lighty/BetterDiscordPlugins/blob/master/Plugins/BetterUnavailableGuilds/","website":"https://1lighty.github.io/BetterDiscordStuff/?plugin=BetterUnavailableGuilds","authorId":"239513071272329217","invite":"NYvWdN5","donate":"https://paypal.me/lighty13"}*//
+//META{"name":"BetterUnavailableGuilds","description":"This plugin is EOL","source":"https://github.com/1Lighty/BetterDiscordPlugins/blob/master/Plugins/BetterUnavailableGuilds/","website":"https://1lighty.github.io/BetterDiscordStuff/?plugin=BetterUnavailableGuilds","authorId":"239513071272329217","invite":"NYvWdN5","donate":"https://paypal.me/lighty13"}*//
 /*@cc_on
 @if (@_jscript)
 
@@ -22,6 +22,18 @@
   WScript.Quit();
 
 @else@*/
+
+module.exports = class BetterUnavailableGuilds {
+  load() {
+  }
+  start() {
+  }
+  stop() {
+  }
+}
+
+return;
+
 /*
  * Copyright © 2020, _Lighty_
  * All rights reserved.
