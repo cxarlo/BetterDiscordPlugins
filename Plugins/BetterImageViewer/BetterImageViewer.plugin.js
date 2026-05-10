@@ -1,5 +1,6 @@
 /**
  * @name BetterImageViewer
+ * @description This plugin is EOL
  * @version 1.6.12
  * @invite NYvWdN5
  * @donate https://paypal.me/lighty13
@@ -29,6 +30,17 @@
   WScript.Quit();
 
 @else@*/
+
+module.exports = class BetterImageViewer {
+  load() {
+  }
+  start() {
+  }
+  stop() {
+  }
+}
+
+return;
 
 module.exports = (() => {
   /* Setup */
