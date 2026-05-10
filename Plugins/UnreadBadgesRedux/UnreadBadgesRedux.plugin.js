@@ -1,6 +1,7 @@
 /**
  * @name UnreadBadgesRedux
  * @version 1.0.22
+ * @description This plugin is EOL
  * @invite NYvWdN5
  * @donate https://paypal.me/lighty13
  * @website https://1lighty.github.io/BetterDiscordStuff/?plugin=UnreadBadgesRedux
@@ -32,6 +33,18 @@
  * All rights reserved.
  * Code may not be redistributed, modified or otherwise taken without explicit permission.
  */
+
+module.exports = class UnreadBadgesRedux {
+  load() {
+  }
+  start() {
+  }
+  stop() {
+  }
+}
+
+return;
+
 module.exports = (() => {
   /* Setup */
   const config = {
