@@ -1,11 +1,12 @@
 /**
  * @name MessageLoggerV2
- * @version 1.10.0
+ * @version 1.10.1
  * @invite NYvWdN5
  * @donate https://paypal.me/lighty13
  * @website https://1lighty.github.io/BetterDiscordStuff/?plugin=MessageLoggerV2
  * @source https://github.com/1Lighty/BetterDiscordPlugins/blob/master/Plugins/MessageLoggerV2/MessageLoggerV2.plugin.js
  * @updateUrl https://raw.githubusercontent.com/1Lighty/BetterDiscordPlugins/master/Plugins/MessageLoggerV2/MessageLoggerV2.plugin.js
+ * @runAt idle
  */
 /*@cc_on
 @if (@_jscript)
@@ -47,7 +48,7 @@ module.exports = class MessageLoggerV2 {
     return 'MessageLoggerV2';
   }
   getVersion() {
-    return '1.10.0';
+    return '1.10.1';
   }
   getAuthor() {
     return 'Lighty';
@@ -253,10 +254,26 @@ module.exports = class MessageLoggerV2 {
       this.automaticallyUpdate();
     }
 
-
     this.TextElement = BdApi.Webpack.getBySource('data-excessive-heading-level', { declarationFilter: e => e?.render?.toString?.()?.includes('data-excessive-heading-level') });
 
-    if (this.settings.versionInfo !== this.getVersion() && this.settings.displayUpdateNotes) {
+    if (global.XenoLib || global.ZeresPluginLibrary) {
+      BdApi.UI.showConfirmationModal('XenoLib and ZeresPluginLibrary EOL', 'The libraries are deprecated and can cause issues, click Delete Now to delete them. Your Discord will refresh after.', {
+        cancelText: null, confirmText: 'Delete Now', onConfirm: () => {
+          const fs = require('fs');
+          const path = require('path');
+          const xenolibPath = BdApi.Plugins.get('XenoLib')?.filename;
+          const zereslibPath = BdApi.Plugins.get('ZeresPluginLibrary')?.filename;
+          if (xenolibPath) try {
+            fs.unlinkSync(path.join(BdApi.Plugins.folder, xenolibPath));
+          } catch (err) { }
+          if (zereslibPath) try {
+            fs.unlinkSync(path.join(BdApi.Plugins.folder, zereslibPath));
+          } catch (err) { }
+          location.reload(); // needed evil
+        }
+      });
+      // have to do this else if to avoid overlapping modals, the user might just skip thru them
+    } else if (this.settings.versionInfo !== this.getVersion() && this.settings.displayUpdateNotes) {
       this.showChangelog();
       this.settings.versionInfo = this.getVersion();
       settingsChanged = true;
