@@ -1,6 +1,6 @@
 /**
  * @name InAppNotifications
- * @description Show a notification in Discord when someone sends a message, just like on mobile.
+ * @description This plugin is EOL
  * @author 1Lighty
  * @authorId 239513071272329217
  * @version 1.3.12
@@ -39,6 +39,18 @@
  * All rights reserved.
  * Code may not be redistributed, modified or otherwise taken without explicit permission.
  */
+
+module.exports = class InAppNotifications {
+  load() {
+  }
+  start() {
+  }
+  stop() {
+  }
+}
+
+return;
+
 module.exports = (() => {
   /* Setup */
   const config = {
