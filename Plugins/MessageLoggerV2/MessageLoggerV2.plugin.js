@@ -1,6 +1,6 @@
 /**
  * @name MessageLoggerV2
- * @version 1.9.13
+ * @version 1.10.0
  * @invite NYvWdN5
  * @donate https://paypal.me/lighty13
  * @website https://1lighty.github.io/BetterDiscordStuff/?plugin=MessageLoggerV2
@@ -29,7 +29,7 @@
   WScript.Quit();
 @else @*/
 /*
- * Copyright © 2019-2025, _Lighty_
+ * Copyright © 2019-2026, 1Lighty
  * All rights reserved.
  * Code may not be redistributed, modified or otherwise taken without explicit permission.
  */
@@ -38,15 +38,16 @@
 const MLV2_TYPE_L1 = Symbol('MLV2_TYPE_L1');
 const MLV2_TYPE_L2 = Symbol('MLV2_TYPE_L2');
 const MLV2_TYPE_L3 = Symbol('MLV2_TYPE_L3');
+const USER_COUNTER_INTERVAL = 1000 * 60 * 60 * 24 * 1;
 
-const { React } = BdApi;
+const { React, Webpack, Logger, Utils: { className } } = BdApi;
 
 module.exports = class MessageLoggerV2 {
   getName() {
     return 'MessageLoggerV2';
   }
   getVersion() {
-    return '1.9.13';
+    return '1.10.0';
   }
   getAuthor() {
     return 'Lighty';
@@ -58,61 +59,23 @@ module.exports = class MessageLoggerV2 {
   start() {
     let onLoaded = () => {
       try {
-        if (global.ZeresPluginLibrary && !this.UserStore) this.UserStore = ZeresPluginLibrary.WebpackModules.getByProps('getCurrentUser', 'getUser');
-        if (!global.ZeresPluginLibrary || !this.UserStore || !(this.localUser = this.UserStore.getCurrentUser())) setTimeout(onLoaded, 1000);
+        if (!this.UserStore) this.UserStore = Webpack.getByKeys('getCurrentUser', 'getUser');
+        if (!this.UserStore || !(this.localUser = this.UserStore.getCurrentUser())) setTimeout(onLoaded, 1000);
         else this.initialize();
       } catch (err) {
-        ZeresPluginLibrary.Logger.stacktrace(this.getName(), 'Failed to start!', err);
-        ZeresPluginLibrary.Logger.err(this.getName(), `If you cannot solve this yourself, contact ${this.getAuthor()} and provide the errors shown here.`);
+        Logger.stacktrace(this.getName(), 'Failed to start!', err);
+        Logger.error(this.getName(), `If you cannot solve this yourself, contact ${this.getAuthor()} and provide the errors shown here.`);
         this.stop();
-        XenoLib.Notifications.error(`[**${this.getName()}**] Failed to start! Try to CTRL + R, or update the plugin, like so\n![image](https://i.imgur.com/tsv6aW8.png)`, { timeout: 0 });
+        BdApi.UI.showNotification({
+          title: this.getName(),
+          content: `Failed to start! Try to CTRL + R, or update the plugin` /* , like so\n![image](https://i.imgur.com/tsv6aW8.png) */,
+          duration: Infinity, // this.. feels dirty? I don't like how limited the built in notificaiton system is compared to mine, I'll be honest
+          type: 'error'
+        });
       }
     };
-    this.pluginDir = (BdApi.Plugins && BdApi.Plugins.folder) || window.ContentManager.pluginsFolder;
-    this.__isPowerCord = !!window.powercord && typeof BdApi.__getPluginConfigPath === 'function' || typeof global.isTab !== 'undefined';
-    let XenoLibOutdated = false;
-    let ZeresPluginLibraryOutdated = false;
-    if (global.BdApi && BdApi.Plugins && typeof BdApi.Plugins.get === 'function' /* you never know with those retarded client mods */) {
-      const versionChecker = (a, b) => ((a = a.split('.').map(a => parseInt(a))), (b = b.split('.').map(a => parseInt(a))), !!(b[0] > a[0])) || !!(b[0] == a[0] && b[1] > a[1]) || !!(b[0] == a[0] && b[1] == a[1] && b[2] > a[2]);
-      const isOutOfDate = (lib, minVersion) => lib && lib._config && lib._config.info && lib._config.info.version && versionChecker(lib._config.info.version, minVersion) || typeof global.isTab !== 'undefined';
-      let iXenoLib = BdApi.Plugins.get('XenoLib');
-      let iZeresPluginLibrary = BdApi.Plugins.get('ZeresPluginLibrary');
-      if (iXenoLib && iXenoLib.instance) iXenoLib = iXenoLib.instance;
-      if (iZeresPluginLibrary && iZeresPluginLibrary.instance) iZeresPluginLibrary = iZeresPluginLibrary.instance;
-      if (isOutOfDate(iXenoLib, '1.4.34') || (iXenoLib && !((iXenoLib?._config?.info?.version?.split('.')?.length || 3) === 3))) XenoLibOutdated = true;
-      if (isOutOfDate(iZeresPluginLibrary, '2.0.23')) ZeresPluginLibraryOutdated = true;
-    }
-    if (/* !global.XenoLib || !global.ZeresPluginLibrary || XenoLibOutdated || ZeresPluginLibraryOutdated */(!BdApi.Plugins.get('XenoLib') && !global.XenoLib) || XenoLibOutdated) {
-      this._XL_PLUGIN = true;
-      // asking people to do simple tasks is stupid, relying on stupid modals that are *supposed* to help them is unreliable
-      // forcing the download on enable is good enough
-      const fs = require('fs');
-      const path = require('path');
-      const pluginsDir = (BdApi.Plugins && BdApi.Plugins.folder) || (window.ContentManager && window.ContentManager.pluginsFolder);
-      const xenoLibPath = path.join(pluginsDir, '1XenoLib.plugin.js');
-      BdApi.Net.fetch('https://raw.githubusercontent.com/1Lighty/BetterDiscordPlugins/refs/heads/master/Plugins/1XenoLib.plugin.js', { headers: { origin: 'discord.com' } })
-        .then(r => {
-          if (!r.ok) {
-            throw new Error('Network request threw error ' + r.statusText);
-          }
-          return r.text();
-        })
-        .then(data => {
-          fs.writeFileSync(xenoLibPath, data);
-        })
-        .catch(err => {
-          console.error('Error downloading XenoLib!', err);
-          BdApi.UI.showConfirmationModal('XenoLib Missing',
-            `XenoLib is missing! Click the link below to download it, then put it in your plugins folder!
-
-You can find the plugins folder by going to Settings > Plugins and clicking the folder icon!
-
-https://astranika.com/bd/download?plugin=1XenoLib`, {
-            confirmText: 'Got it',
-            cancelText: null
-          });
-        });
-    } else onLoaded();
+    this.pluginDir = BdApi.Plugins.folder;
+    onLoaded();
   }
   stop() {
     try {
@@ -122,7 +85,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
       transitionTo('/channels/@me'); // dirty fix for crash
       if (currLocation) setTimeout(() => transitionTo(currLocation), 500);
     } catch (err) {
-      // ZeresPluginLibrary.Logger.stacktrace(this.getName(), 'Failed to stop!', err);
+      // Logger.stacktrace(this.getName(), 'Failed to stop!', err);
     }
   }
   getChanges() {
@@ -131,34 +94,66 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         title: 'Fixed',
         type: 'fixed',
         items: [
-          'Fixed Message component not being patched if you launched Discord on say, the friends list or something, making the logger not show deleted messages as red.'
+          'Hopefully fixed edits not showing up sometimes, also added some sort of warning and fallback if it happens again.'
+        ]
+      },
+      {
+        title: 'MessageLoggerV2 is now standalone!',
+        type: 'progress',
+        items: [
+          'I have combed thru the plugin and removed its XenoLib and ZeresPluginLibrary dependency to ease the burden on users, make the whole experience easier, as well as to finally ditch the deprecated ZeresPluginLibrary which might have been causing issues.',
+          '----> **YOU CAN SAFELY DELETE XENOLIB AND ZERESPLUGINLIBRARY** <----',
+          'It is advisable you do to avoid issues.'
         ]
       }
     ];
   }
+
+  showChangelog() {
+    const AnchorClasses = BdApi.Webpack.getByKeys('anchor', 'anchorUnderlineOnHover') || {};
+    const renderFooter = () => [
+      React.createElement(this.TextElement || 'span',
+        {
+          variant: 'text-xs/normal'
+        }, 'Need support? ',
+        React.createElement('a', {
+          className: className(AnchorClasses.anchor, AnchorClasses.anchorUnderlineOnHover),
+          onClick: () => BdApi.UI.showInviteModal('NYvWdN5')
+        },
+          'Join my support server'
+        ),
+        '! Or consider donating via ',
+        React.createElement('a', {
+          className: className(AnchorClasses.anchor, AnchorClasses.anchorUnderlineOnHover),
+          onClick: () => window.open('https://paypal.me/lighty13')
+        },
+          'Paypal'
+        ),
+        ', ',
+        React.createElement('a', {
+          className: className(AnchorClasses.anchor, AnchorClasses.anchorUnderlineOnHover),
+          onClick: () => window.open('https://ko-fi.com/lighty_')
+        },
+          'Ko-fi'
+        ),
+        '!',
+        '\nBy using these plugins, you agree to being part of the anonymous user counter, unless disabled in settings.'
+      )
+    ];
+    BdApi.UI.showChangelogModal({
+      title: `${this.getName()} has been updated!`,
+      subtitle: `Version ${this.getVersion()}`,
+      footer: renderFooter(),
+      changes: this.getChanges()
+    });
+  }
+
   initialize() {
-    if (this.__started) return XenoLib.Notifications.warning(`[**${this.getName()}**] Tried to start twice..`, { timeout: 0 });
+    if (this.__started) return BdApi.UI.showNotification({ title: this.getName(), content: `Tried to start twice..`, type: 'warning' });
     this.__started = true;
-    /*
-     * why are we letting Zere, the braindead American let control BD when he can't even
-     * fucking read clearly documented and well known standards, such as __filename being
-     * the files full fucking path and not just the filename itself, IS IT REALLY SO HARD
-     * TO FUCKING READ?! https://nodejs.org/api/modules.html#modules_filename
-     */
-    const _zerecantcode_path = require('path');
-    const theActualFileNameZere = _zerecantcode_path.join(__dirname, _zerecantcode_path.basename(__filename));
-    XenoLib.changeName(theActualFileNameZere, 'MessageLoggerV2'); /* To everyone who renames plugins: FUCK YOU! */
-    try {
-      ZeresPluginLibrary.WebpackModules.getByProps('openModal', 'hasModalOpen').closeModal(`${this.getName()}_DEP_MODAL`);
-    } catch (e) { }
-    // force update
-    try {
-      ZeresPluginLibrary.PluginUpdater.checkForUpdate(this.getName(), this.getVersion(), 'https://raw.githubusercontent.com/1Lighty/BetterDiscordPlugins/master/Plugins/MessageLoggerV2/MessageLoggerV2.plugin.js');
-    } catch (err) { }
-    if (window.PluginUpdates && window.PluginUpdates.plugins) delete PluginUpdates.plugins['https://gitlab.com/_Lighty_/bdstuff/raw/master/public/plugins/MessageLoggerV2.plugin.js'];
-    if (BdApi.Plugins && BdApi.Plugins.get('NoDeleteMessages') && BdApi.Plugins.isEnabled('NoDeleteMessages')) XenoLib.Notifications.warning(`[**${this.getName()}**] Using **NoDeleteMessages** with **${this.getName()}** is completely unsupported and will cause issues. Please either disable **NoDeleteMessages** or delete it to avoid issues.`, { timeout: 0 });
-    if (BdApi.Plugins && BdApi.Plugins.get('SuppressUserMentions') && BdApi.Plugins.isEnabled('SuppressUserMentions')) XenoLib.Notifications.warning(`[**${this.getName()}**] Using **SuppressUserMentions** with **${this.getName()}** is completely unsupported and will cause issues. Please either disable **SuppressUserMentions** or delete it to avoid issues.`, { timeout: 0 });
-    const shouldPass = e => e && e.constructor && typeof e.constructor.name === 'string' && e.constructor.name.indexOf('HTML');
+
+    const lodash = this.lodash = BdApi.Webpack.getByKeys('bindAll', 'debounce');
+
     let defaultSettings = {
       obfuscateCSSClasses: true,
       autoBackup: false,
@@ -175,7 +170,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
       alwaysLogGhostPings: false,
       showOpenLogsButton: true,
       messageCacheCap: 1000,
-      savedMessagesCap: 1000,
+      savedMessagesCap: 10000,
       reverseOrder: true,
       onlyLogWhitelist: true,
       whitelist: [],
@@ -232,44 +227,39 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
       imageCacheDir: this.pluginDir + '/MLV2_IMAGE_CACHE',
       flags: 0,
       autoUpdate: true,
-      versionInfo: ''
+      versionInfo: '0.0.0',
+      userCounter: {
+        enabled: true,
+        enableTime: 0,
+        lastSubmission: 0
+      }
     };
     const Flags = {
       STOLEN: 1 << 0,
       STARTUP_HELP: 1 << 1
     };
 
-    this.settings = ZeresPluginLibrary.PluginUtilities.loadSettings(this.getName(), defaultSettings);
+    this.settings = this.loadData(this.getName(), 'settings', defaultSettings);
     let settingsChanged = false;
 
-    if (!this.settings || !Object.keys(this.settings).length) {
-      XenoLib.Notifications.error(`[${this.getName()}] Settings file corrupted! All settings restored to default.`, { timeout: 0 });
-      this.settings = defaultSettings; // todo: does defaultSettings get changed?
-      settingsChanged = true;
-    }
     if (this.settings.versionInfo === '1.7.55') {
-      this.settings = defaultSettings; // bad default settings
+      this.settings = lodash.cloneDeep(defaultSettings); // bad default settings
       settingsChanged = true;
     }
-    // if (!this.settings.openLogKeybind.length) {
-    //   this.settings.openLogKeybind = [162, 77];
-    //   settingsChanged = true;
-    // }
-    // if (!this.settings.openLogFilteredKeybind.length) {
-    //   this.settings.openLogFilteredKeybind = [162, 78];
-    //   settingsChanged = true;
-    // }
 
     if (this.settings.autoUpdate) {
       if (this._autoUpdateInterval) clearInterval(this._autoUpdateInterval);
       this._autoUpdateInterval = setInterval(_ => this.automaticallyUpdate(), 1000 * 60 * 60); // 1 hour
       this.automaticallyUpdate();
     }
+
+
+    this.TextElement = BdApi.Webpack.getBySource('data-excessive-heading-level', { declarationFilter: e => e?.render?.toString?.()?.includes('data-excessive-heading-level') });
+
     if (this.settings.versionInfo !== this.getVersion() && this.settings.displayUpdateNotes) {
-      XenoLib.showChangelog(`${this.getName()} has been updated!`, this.getVersion(), this.getChanges());
+      this.showChangelog();
       this.settings.versionInfo = this.getVersion();
-      this.saveSettings();
-      settingsChanged = false;
+      settingsChanged = true;
     }
 
     if (settingsChanged) this.saveSettings();
@@ -296,19 +286,19 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     if (this.settings.dontSaveData) {
       data = defaultConstruct();
     } else {
-      data = XenoLib.loadData(this.getName() + 'Data', 'data', defaultConstruct(), true);
+      data = this.loadData(this.getName() + 'Data', 'data', defaultConstruct());
       const isBad = map => !(map && map.messageRecord && map.editedMessageRecord && map.deletedMessageRecord && map.purgedMessageRecord && typeof map.messageRecord == 'object' && typeof map.editedMessageRecord == 'object' && typeof map.deletedMessageRecord == 'object' && typeof map.purgedMessageRecord == 'object');
       if (isBad(data)) {
         if (this.settings.autoBackup) {
-          data = XenoLib.loadData(this.getName() + 'DataBackup', 'data', defaultConstruct(), true);
+          data = this.loadData(this.getName() + 'Data', 'data', defaultConstruct());
           if (isBad(data)) {
-            XenoLib.Notifications.error(`[${this.getName()}] Data and backup files were corrupted. All deleted/edited/purged messages have been erased.`, { timeout: 0 });
+            BdApi.UI.showNotification({ title: this.getName(), content: `Data and backup files were corrupted. All deleted/edited/purged messages have been erased.`, duration: Infinity, type: 'error' });
             data = defaultConstruct();
           } else {
-            XenoLib.Notifications.warning(`[${this.getName()}] Data was corrupted, loaded backup!`, { timeout: 5000 });
+            BdApi.UI.showNotification({ title: this.getName(), content: 'Data was corrupted, loaded backup!', type: 'warning' });
           }
         } else {
-          XenoLib.Notifications.error(`[${this.getName()}] Data was corrupted! Recommended to turn on auto backup in settings! All deleted/edited/purged messages have been erased.`, { timeout: 0 });
+          BdApi.UI.showNotification({ title: this.getName(), content: 'Data was corrupted! Recommended to turn on auto backup in settings! All deleted/edited/purged messages have been erased.', duration: Infinity, type: 'error' });
           data = defaultConstruct();
         }
       }
@@ -322,12 +312,14 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     // 3 EXTREME > 20MiB
     this.slowSaveModeStep = dataFileSize > 20 ? 3 : dataFileSize > 10 ? 2 : dataFileSize > 5 ? 1 : 0;
     ZeresPluginLibrary.Logger.info(this.getName(), `Data file size is ${dataFileSize.toFixed(2)}MB`);
-    if (this.slowSaveModeStep) ZeresPluginLibrary.Logger.warn(this.getName(), 'Data file is too large, severity level', this.slowSaveModeStep);
+    if (this.slowSaveModeStep) Logger.warn(this.getName(), 'Data file is too large, severity level', this.slowSaveModeStep);
 */
 
-    this.messageStore = ZeresPluginLibrary.WebpackModules.getByProps('focusedMessageId', 'getMessages', 'getMessage');
+    this.messageStore = Webpack.getByKeys('focusedMessageId', 'getMessages', 'getMessage');
 
-    this.ChannelStore = ZeresPluginLibrary.WebpackModules.getByProps('getChannel', 'getDMFromUserId');
+    this.ChannelStore = Webpack.getByKeys('getChannel', 'getDMFromUserId');
+    this.SelectedChannelStore = Webpack.getByKeys('getChannelId', 'getLastSelectedChannelId');
+
     if (!this.settings.dontSaveData) {
       const records = data.messageRecord;
       // data structure changed a wee bit, compensate instead of deleting user data or worse, erroring out
@@ -364,7 +356,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
 
     const imageCacheDirFailure = () => {
       this.settings.imageCacheDir = this.pluginDir + '/MLV2_IMAGE_CACHE';
-      XenoLib.Notifications.error(`[**${this.getName()}**] Failed to access custom image cache dir. It has been reset to plugins folder!`);
+      BdApi.UI.showNotification({ title: this.getName(), content: 'Failed to access custom image cache dir. It has been reset to plugins folder!', type: 'error' });
     };
 
     if (this.settings.cacheAllImages && !this.nodeModules.fs.existsSync(this.settings.imageCacheDir)) {
@@ -379,7 +371,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
       class ImageCacheServer {
         constructor(imagePath, name) {
           try {
-            ZeresPluginLibrary.WebpackModules.getByProps('bindAll', 'debounce').bindAll(this, ['_requestHandler', '_errorHandler']);
+            Webpack.getByKeys('bindAll', 'debounce').bindAll(this, ['_requestHandler', '_errorHandler']);
             this._server = require('http').createServer(this._requestHandler); // fuck bd 👍
             this._getMimetype = require('mime-types').lookup;
             this._parseURL = require('url').parse;
@@ -388,26 +380,26 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
             this._imagePath = imagePath;
             this._name = name;
           } catch (err) {
-            //ZeresPluginLibrary.Logger.err(this._name, 'Error in ImageCacheServer', err);
+            //Logger.error(this._name, 'Error in ImageCacheServer', err);
           }
         }
         start() {
           try {
             this._server.listen(7474, 'localhost', this._errorHandler);
           } catch (err) {
-            //ZeresPluginLibrary.Logger.err(this._name, 'Error in ImageCacheServer', err);
+            //Logger.error(this._name, 'Error in ImageCacheServer', err);
           }
         }
         stop() {
           try {
             this._server.close();
           } catch (err) {
-            //ZeresPluginLibrary.Logger.err(this._name, 'Error in ImageCacheServer', err);
+            //Logger.error(this._name, 'Error in ImageCacheServer', err);
           }
         }
         _errorHandler(err) {
-          if (err) return ZeresPluginLibrary.Logger.err(this._name, 'Error in ImageCacheServer', err);
-          ZeresPluginLibrary.Logger.info(this._name, 'ImageCacheServer: OK');
+          if (err) return Logger.error(this._name, 'Error in ImageCacheServer', err);
+          Logger.info(this._name, 'ImageCacheServer: OK');
         }
         _requestHandler(req, res) {
           // parse URL
@@ -435,7 +427,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     defaultConstruct = undefined;
 
     /* backport from MLV3/rewrite */
-    const CUser = ZeresPluginLibrary.WebpackModules.getByPrototypes('getAvatarSource', 'isLocalBot');
+    const CUser = Webpack.getByPrototypeKeys('getAvatarSource', 'isLocalBot');
     const userRecord = {};
     const lastSeenUser = {};
     for (const messageId in this.messageRecord) {
@@ -449,7 +441,13 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
       }
     }
 
-    this.Patcher = XenoLib.createSmartPatcher({ before: (moduleToPatch, functionName, callback, options = {}) => ZeresPluginLibrary.Patcher.before(this.getName(), moduleToPatch, functionName, callback, options), instead: (moduleToPatch, functionName, callback, options = {}) => ZeresPluginLibrary.Patcher.instead(this.getName(), moduleToPatch, functionName, callback, options), after: (moduleToPatch, functionName, callback, options = {}) => ZeresPluginLibrary.Patcher.after(this.getName(), moduleToPatch, functionName, callback, options) });
+    // will revisit later if this becomes an issue, had a workaround for BDFDB
+    this.Patcher = {
+      before: (mod, func, cb) => BdApi.Patcher.before(this.getName(), mod, func, cb),
+      instead: (mod, func, cb) => BdApi.Patcher.instead(this.getName(), mod, func, cb),
+      after: (mod, func, cb) => BdApi.Patcher.after(this.getName(), mod, func, cb),
+      unpatchAll: () => BdApi.Patcher.unbindAll(this.getName())
+    };
 
     this.unpatches = [];
 
@@ -463,31 +461,32 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
       })
     );
 
-    const isMentioned = ZeresPluginLibrary.WebpackModules.getModule(e => typeof e === 'function' && e?.toString()?.includes('mentionEveryone') && e?.toString()?.includes('roles.includes'), { searchExports: true });
+    const isMentioned = Webpack.getModule(e => typeof e === 'function' && e?.toString()?.includes('mentionEveryone') && e?.toString()?.includes('roles.includes'), { searchExports: true });
+    const MessageActions = Webpack.getByKeys('fetchMessages', 'jumpToMessage');
 
     this.tools = {
       openUserContextMenu: null /* NeatoLib.Modules.get('openUserContextMenu').openUserContextMenu */, // TODO: move here
       getMessage: this.messageStore.getMessage,
-      fetchMessages: ZeresPluginLibrary.DiscordModules.MessageActions.fetchMessages.bind(ZeresPluginLibrary.DiscordModules.MessageActions),
-      transitionTo: BdApi.Webpack.getByStrings('transitionTo - Transitioning to ', { searchExports: true }) || (() => { }),
+      fetchMessages: MessageActions.fetchMessages.bind(MessageActions),
+      transitionTo: Webpack.getByStrings('transitionTo - Transitioning to ', { searchExports: true }) || (() => { }),
       getChannel: this.ChannelStore.getChannel,
       copyToClipboard: global.copy,
-      getServer: ZeresPluginLibrary.WebpackModules.getByProps('getGuild', 'getGuildCount').getGuild,
+      getServer: Webpack.getByKeys('getGuild', 'getGuildCount').getGuild,
       getUser: this.UserStore.getUser,
-      parse: ZeresPluginLibrary.WebpackModules.getByProps('parse', 'astParserFor').parse,
-      getUserAsync: /* ZeresPluginLibrary.WebpackModules.getByProps('getUser', 'acceptAgreements').getUser */ () => Promise.resolve(),
-      isBlocked: ZeresPluginLibrary.WebpackModules.getByProps('isBlocked').isBlocked,
-      createMomentObject: ZeresPluginLibrary.WebpackModules.getByProps('createFromInputFallback'),
+      parse: Webpack.getByKeys('parse', 'astParserFor').parse,
+      getUserAsync: /* Webpack.getByKeys('getUser', 'acceptAgreements').getUser */ () => Promise.resolve(),
+      isBlocked: Webpack.getByKeys('isBlocked').isBlocked,
+      createMomentObject: Webpack.getByKeys('createFromInputFallback'),
       isMentioned: (e, id) => isMentioned({ userId: id, channelId: e.channel_id, mentionEveryone: e.mentionEveryone || e.mention_everyone, mentionUsers: e.mentions.map(e => e.id || e), mentionRoles: e.mentionRoles || e.mention_roles, mentionGames: [] }),
-      DiscordUtils: ZeresPluginLibrary.WebpackModules.getByProps('bindAll', 'debounce')
+      DiscordUtils: Webpack.getByKeys('bindAll', 'debounce')
     };
 
     this.createButton.classes = {
       button: (function () {
-        let buttonData = ZeresPluginLibrary.WebpackModules.getByProps('button', 'colorBrand');
+        let buttonData = Webpack.getByKeys('button', 'colorBrand');
         return `${buttonData.button} ${buttonData.lookFilled} ${buttonData.colorBrand} ${buttonData.sizeSmall} ${buttonData.grow}`;
       })(),
-      buttonContents: ZeresPluginLibrary.WebpackModules.getByProps('button', 'colorBrand').contents
+      buttonContents: Webpack.getByKeys('button', 'colorBrand').contents
     };
 
     this.safeGetClass = (func, fail, heckoff) => {
@@ -499,80 +498,73 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
       }
     };
 
-    this.createMessageGroup.classes = {
-      containerBounded: this.safeGetClass(() => ZeresPluginLibrary.WebpackModules.getByProps('containerCozyBounded').containerCozyBounded, 'containerCozyBounded'),
-      message: this.safeGetClass(() => `.${ZeresPluginLibrary.WebpackModules.getByProps('containerCozyBounded').containerCozyBounded.split(/ /g)[0]} > div`, '.containerCozyBounded-MLV2 > div', true),
-      header: this.safeGetClass(() => ZeresPluginLibrary.WebpackModules.getByProps('containerCozyBounded').headerCozy, 'headerCozy'),
-      avatar: this.safeGetClass(() => XenoLib.getClass('header avatar', true), 'avatar'),
-      headerMeta: this.safeGetClass(() => ZeresPluginLibrary.WebpackModules.getByProps('containerCozyBounded').headerCozyMeta, 'headerCozyMeta'),
-      username: this.safeGetClass(() => ZeresPluginLibrary.WebpackModules.getByProps('containerCozyBounded').username, 'username'),
-      timestamp: this.safeGetClass(() => ZeresPluginLibrary.WebpackModules.getByProps('containerCozyBounded').timestampCozy, 'timestampCozy'),
-      timestampSingle: this.safeGetClass(() => ZeresPluginLibrary.WebpackModules.getByProps('containerCozyBounded').timestampCozy.split(/ /g)[0], 'timestampCozy'),
-      content: this.safeGetClass(() => ZeresPluginLibrary.WebpackModules.getByProps('containerCozyBounded').contentCozy, 'contentCozy'),
-      avatarSingle: this.safeGetClass(() => ZeresPluginLibrary.WebpackModules.getByProps('containerCozyBounded').avatar.split(/ /g)[0], 'avatar'),
-      avatarImg: XenoLib.getClass('clickable avatar'),
-      avatarImgSingle: XenoLib.getSingleClass('clickable avatar'),
-      botTag: ZeresPluginLibrary.WebpackModules.getByProps('botTagRegular')?.botTagRegular + ' ' + /* ZeresPluginLibrary.WebpackModules.getByProps('botTagCozy').botTagCozy */'botTagCozy_c19a55',
-      markupSingle: this.safeGetClass(() => ZeresPluginLibrary.WebpackModules.getByProps('markup').markup.split(/ /g)[0], 'markup__75297')
-    };
+    const { getClass } = this;
 
     this.multiClasses = {
-      defaultColor: ZeresPluginLibrary.WebpackModules.getByProps('defaultColor').defaultColor,
-      item: ZeresPluginLibrary.WebpackModules.find(m => m.item && m.selected && m.topPill).item,
-      /* tabBarItem: ZeresPluginLibrary.DiscordClassModules.UserModal.tabBarItem, */
-      tabBarContainer: ZeresPluginLibrary.DiscordClassModules.UserModal?.tabBarContainer,
-      tabBar: ZeresPluginLibrary.DiscordClassModules.UserModal?.tabBar,
-      edited: XenoLib.joinClassNames(XenoLib.getClass('separator timestamp'), XenoLib.getClass('separator timestampInline')),
-      markup: ZeresPluginLibrary.WebpackModules.getByProps('markup')['markup'],
+      defaultColor: Webpack.getByKeys('defaultColor').defaultColor,
+      get edited() {
+        delete this.edited;
+        return this.edited = className(getClass('separator timestamp'), getClass('separator timestampInline'));
+      },
+      markup: Webpack.getByKeys('markup')['markup'],
       message: {
         cozy: {
-          containerBounded: this.safeGetClass(() => ZeresPluginLibrary.WebpackModules.getByProps('containerCozyBounded').containerCozyBounded, 'containerCozyBounded'),
-          header: this.safeGetClass(() => ZeresPluginLibrary.WebpackModules.getByProps('containerCozyBounded').headerCozy, 'headerCozy'),
-          avatar: this.safeGetClass(() => ZeresPluginLibrary.WebpackModules.getByProps('containerCozyBounded').avatar, 'avatar'),
-          headerMeta: this.safeGetClass(() => ZeresPluginLibrary.WebpackModules.getByProps('containerCozyBounded').headerCozyMeta, 'headerCozyMeta'),
-          username: this.safeGetClass(() => ZeresPluginLibrary.WebpackModules.getByProps('containerCozyBounded').username, 'username'),
-          timestamp: this.safeGetClass(() => ZeresPluginLibrary.WebpackModules.getByProps('containerCozyBounded').timestampCozy, 'timestampCozy'),
-          content: this.safeGetClass(() => ZeresPluginLibrary.WebpackModules.getByProps('containerCozyBounded').contentCozy, 'contentCozy')
+          containerBounded: this.safeGetClass(() => Webpack.getByKeys('containerCozyBounded').containerCozyBounded, 'containerCozyBounded'),
+          header: this.safeGetClass(() => Webpack.getByKeys('containerCozyBounded').headerCozy, 'headerCozy'),
+          avatar: this.safeGetClass(() => Webpack.getByKeys('containerCozyBounded').avatar, 'avatar'),
+          headerMeta: this.safeGetClass(() => Webpack.getByKeys('containerCozyBounded').headerCozyMeta, 'headerCozyMeta'),
+          username: this.safeGetClass(() => Webpack.getByKeys('containerCozyBounded').username, 'username'),
+          timestamp: this.safeGetClass(() => Webpack.getByKeys('containerCozyBounded').timestampCozy, 'timestampCozy'),
+          content: this.safeGetClass(() => Webpack.getByKeys('containerCozyBounded').contentCozy, 'contentCozy')
         }
       }
     };
 
     this.classes = {
-      markup: ZeresPluginLibrary.WebpackModules.getByProps('markup')['markup'].split(/ /g)[0],
-      hidden: ZeresPluginLibrary.WebpackModules.getByProps('spoilerContent', 'hidden').hidden.split(/ /g)[0],
+      markup: Webpack.getByKeys('markup')['markup'].split(/ /g)[0],
+      hidden: Webpack.getByKeys('spoilerContent', 'hidden').hidden.split(/ /g)[0],
       /* messages: this.safeGetClass(
-        () => `.${ZeresPluginLibrary.WebpackModules.getByProps('container', 'containerCompactBounded').container.split(/ /g)[0]} > div:not(.${ZeresPluginLibrary.WebpackModules.getByProps('content', 'marginCompactIndent').content.split(/ /g)[0]})`,
-        this.safeGetClass(() => `.${XenoLib.getSingleClass('scroller messages')} > .${XenoLib.getSingleClass('channelTextArea message')}`, 'Lighty-youre-a-failure-my-fucking-god'),
+        () => `.${Webpack.getByKeys('container', 'containerCompactBounded').container.split(/ /g)[0]} > div:not(.${Webpack.getByKeys('content', 'marginCompactIndent').content.split(/ /g)[0]})`,
+        this.safeGetClass(() => `.${this.getSingleClass('scroller messages')} > .${this.getSingleClass('channelTextArea message')}`, 'Lighty-youre-a-failure-my-fucking-god'),
         true
       ), not even used...? */
-      avatar: this.safeGetClass(() => XenoLib.getSingleClass('header avatar', true), 'avatar-MLV2')
+      avatar: this.safeGetClass(() => this.getSingleClass('header avatar', true), 'avatar-MLV2')
     };
 
-    this.muteModule = ZeresPluginLibrary.WebpackModules.find(m => m.isChannelMuted);
+    this.muteModule = Webpack.getModule(m => m.isChannelMuted);
 
     this.menu = {};
     this.menu.classes = {};
     this.menu.filter = '';
     this.menu.open = false;;
 
-    const chatContent = ZeresPluginLibrary.WebpackModules.getByProps('chatContent');
+    const chatContent = Webpack.getByKeys('chatContent');
     this.observer.chatContentClass = ((chatContent && chatContent.chatContent) || 'chat-3bRxxu').split(/ /g)[0];
-    this.observer.chatClass = XenoLib.getClass('chatContent chat') || 'chat_f75fb0';
-    this.observer.titleClass = !chatContent ? 'ERROR-CLASSWTF' : ZeresPluginLibrary.WebpackModules.getByProps('title', 'chatContent').title.split(/ /g)[0];
-    this.observer.containerCozyClass = this.safeGetClass(() => ZeresPluginLibrary.WebpackModules.getByProps('containerCozyBounded').containerCozyBounded.split(/ /g)[0], 'containerCozyBounded');
+    this.observer.chatClass = this.getClass('chatContent chat') || 'chat_f75fb0';
+    this.observer.titleClass = !chatContent ? 'ERROR-CLASSWTF' : Webpack.getByKeys('title', 'chatContent').title.split(/ /g)[0];
+    this.observer.containerCozyClass = this.safeGetClass(() => Webpack.getByKeys('containerCozyBounded').containerCozyBounded.split(/ /g)[0], 'containerCozyBounded');
 
     this.localUser = this.UserStore.getCurrentUser();
+
+    this.ModalStack = BdApi.Webpack.getMangled(/\w=null!=\w\.modalKey\?\w\.modalKey:\w\(\)\(\)/, {
+      openModalAsync: BdApi.Webpack.Filters.byRegex(/\w=null!=\w\.modalKey\?\w\.modalKey:\w\(\)\(\)/),
+      openModal: BdApi.Webpack.Filters.byRegex(/modalKey:\w,dismissable:\w,/),
+      closeModal: BdApi.Webpack.Filters.byRegex(/null!=\w&&null!=\w\.onCloseCallback&&\w\.onCloseCallback\(\)/),
+      closeAllModals: BdApi.Webpack.Filters.byRegex(/getState\(\);for\(let \w in \w\)for\(let \w of \w\[\w\]\)\w\(\w\.key,\w\)/),
+      hasModalOpen: BdApi.Webpack.Filters.byRegex(/return \w\(\w\.getState\(\),\w,\w\)/),
+      modalStore: e => e.getState && e.setState && e.subscribe
+    });
 
     this.deletedChatMessagesCount = {};
     this.editedChatMessagesCount = {};
 
-    this.channelMessages = ZeresPluginLibrary.WebpackModules.find(m => m._channelMessages)._channelMessages;
+    this.channelMessages = Webpack.getModule(m => m._channelMessages)._channelMessages;
 
     this.autoBackupSaveInterupts = 0;
 
     // have to patch (what was previously named) messageHasExpiredAttachmentUrl, otherwise Discord will needlessly
     // reload the channel causing scrolling issues, quite annoying!
-    const AttachmentUtils = BdApi.Webpack.getBySource('(["/attachments/","/ephemeral-attachments/"])');
+    const AttachmentUtils = Webpack.getBySource('(["/attachments/","/ephemeral-attachments/"])');
 
     if (AttachmentUtils) {
       try {
@@ -590,19 +582,19 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
           )
         );
       } catch (e) {
-        ZeresPluginLibrary.Logger.warn(this.getName(), 'Failed to patch AttachmentUtils!', e);
+        Logger.warn(this.getName(), 'Failed to patch AttachmentUtils!', e);
       }
-    } else ZeresPluginLibrary.Logger.warn(this.getName(), 'Failed to find AttachmentUtils!');
+    } else Logger.warn(this.getName(), 'Failed to find AttachmentUtils!');
 
 
 
     // unsure if this will stay functional, but last time I checked this ONLY returns the correct dispatcher since this specific filter
     // only matches all stores that use the main dispatcher
-    this.dispatcher = BdApi.Webpack.getByKeys('_dispatcher')?._dispatcher;
+    this.dispatcher = Webpack.getByKeys('_dispatcher')?._dispatcher;
 
     if (!this.dispatcher) {
-      ZeresPluginLibrary.Logger.err(this.getName(), 'Failed to find Dispatcher!');
-      XenoLib.Notifications.error(`[**${this.getName()}**] Failed to start plugin! Critical error: dispatcher not found!`);
+      Logger.error(this.getName(), 'Failed to find Dispatcher!');
+      BdApi.UI.showNotification({ title: this.getName(), content: 'Failed to start plugin! Critical error: dispatcher not found!', duration: Infinity, type: 'error' });
       return;
     }
 
@@ -614,7 +606,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
       )
     );
     this.unpatches.push(
-      this.Patcher.instead(ZeresPluginLibrary.DiscordModules.MessageActions, 'startEditMessage', (_, args, original) => {
+      this.Patcher.instead(MessageActions, 'startEditMessage', (_, args, original) => {
         const channelId = args[0];
         const messageId = args[1];
         if (this.deletedMessageRecord[channelId] && this.deletedMessageRecord[channelId].indexOf(messageId) !== -1) return;
@@ -656,7 +648,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     if (this.selectedChannel) this.cacheChannelMessages(this.selectedChannel.id);
 
     // todo: custom deleted message text color
-    ZeresPluginLibrary.PluginUtilities.addStyle(
+    BdApi.DOM.addStyle(
       (this.style.css = !this.settings.obfuscateCSSClasses ? 'ML2-CSS' : this.randomString()),
       `
                 .${this.style.deleted} .${this.classes.markup}, .${this.style.deleted} .${this.classes.markup} .hljs, .${this.style.deleted} .container-1ov-mD *{
@@ -850,11 +842,11 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     this.patchModal();
 
     // const createKeybindListener = () => {
-    //   this.keybindListener = new (ZeresPluginLibrary.WebpackModules.getModule(m => typeof m === 'function' && m.toString().includes('.default.setOnInputEventCallback')))();
+    //   this.keybindListener = new (BdApi.Webpack.getModule(m => typeof m === 'function' && m.toString().includes('.default.setOnInputEventCallback')))();
     //   this.keybindListener.on('change', e => {
     //     if (this.settings.disableKeybind) return; // todo: destroy if disableKeybind is set to true and don't make one if it was true from the start
     //     // this is the hackiest thing ever but it works xdd
-    //     if (!ZeresPluginLibrary.WebpackModules.getByProps('isFocused').isFocused() || document.getElementsByClassName('bda-slist').length) return;
+    //     if (!Webpack.getByKeys('isFocused').isFocused() || document.getElementsByClassName('bda-slist').length) return;
     //     const isKeyBind = keybind => {
     //       if (e.combo.length != keybind.length) return false;
     //       // console.log(e.combo);
@@ -877,7 +869,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     //     if (isKeyBind(this.settings.openLogFilteredKeybind)) {
     //       if (this.menu.open) return close();
     //       if (!this.selectedChannel) {
-    //         this.showToast('No channel selected', { type: 'error' });
+    //         BdApi.UI.showToast('No channel selected', { type: 'error' });
     //         return this.openWindow();
     //       }
     //       this.menu.filter = `channel:${this.selectedChannel.id}`;
@@ -886,7 +878,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     //   });
     // };
 
-    //this.powerMonitor = ZeresPluginLibrary.WebpackModules.getByProps('remotePowerMonitor').remotePowerMonitor;
+    //this.powerMonitor = Webpack.getByKeys('remotePowerMonitor').remotePowerMonitor;
 
     // const refreshKeykindListener = () => {
     //   this.keybindListener.destroy();
@@ -923,10 +915,8 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
       this.handleMessagesCap();
     }, 60 * 1000 * 5); // every 5 minutes, no need to spam it, could be intensive
 
-    this.ContextMenuActions = ZeresPluginLibrary.DiscordModules.ContextMenuActions;
-
     this.menu.randomValidChannel = (() => {
-      const channels = this.ChannelStore.getChannels ? this.ChannelStore.getChannels() : ZeresPluginLibrary.WebpackModules.getByProps('getChannels').getChannels();
+      const channels = this.ChannelStore.getChannels ? this.ChannelStore.getChannels() : Webpack.getByKeys('getChannels').getChannels();
       var keys = Object.keys(channels);
       return channels[keys[(keys.length * Math.random()) << 0]];
     })();
@@ -950,7 +940,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     );
 
     this.menu.shownMessages = -1;
-    const iconShit = ZeresPluginLibrary.WebpackModules.getByProps('container', 'children', 'toolbar', 'iconWrapper');
+    const iconShit = Webpack.getByKeys('container', 'children', 'toolbar', 'iconWrapper');
     // Icon by font awesome
     // https://fontawesome.com/license
     this.channelLogButton = this.parseHTML(`<div tabindex="0" class="${iconShit.iconWrapper} ${iconShit.clickable}" role="button">
@@ -966,12 +956,12 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
       this.menu.filter = `channel:${this.selectedChannel.id}`;
       this.openWindow();
     });
-    new ZeresPluginLibrary.Tooltip(this.channelLogButton, 'Open Logs', { side: 'bottom' });
+    BdApi.UI.createTooltip(this.channelLogButton, 'Open Logs', { side: 'bottom' });
 
     if (this.settings.showOpenLogsButton) setTimeout(() => this.addOpenLogsButton(), 1000); // I hate this.. buuut it works, at this point idk what order things are executing..
 
     this.unpatches.push(
-      this.Patcher.instead(ZeresPluginLibrary.DiscordModules.MessageActions, 'deleteMessage', (_, args, original) => {
+      this.Patcher.instead(MessageActions, 'deleteMessage', (_, args, original) => {
         const messageId = args[1];
         if (this.messageRecord[messageId] && this.messageRecord[messageId].delete_data) return;
         this.localDeletes.push(messageId);
@@ -982,7 +972,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
 
     this.unpatches.push(
       this.Patcher.instead(this.messageStore, 'getLastEditableMessage', (_this, [channelId]) => {
-        const me = XenoLib.DiscordAPI.userId;
+        const me = this.localUser.id;
         return _this
           .getMessages(channelId)
           .toArray()
@@ -1005,7 +995,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
           this.selfTestInterval = 0;
           return BdApi.alert(`${this.getName()}: internal error.`, `Self test failure: Failed to hook dispatch. Recommended to reload your discord (CTRL + R) as the plugin may be in a broken state! If you still see this error, open up the devtools console (CTRL + SHIFT + I, click console tab) and report the errors to ${this.getAuthor()} for further assistance.`);
         }
-        ZeresPluginLibrary.Logger.warn(this.getName(), 'Dispatch is not hooked, all our hooks may be invalid, attempting to reload self');
+        Logger.warn(this.getName(), 'Dispatch is not hooked, all logger hooks may be invalid, attempting to reload self');
         this.selfTestFailures++;
         this.stop();
         this.start();
@@ -1015,12 +1005,31 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
       });
     }, 10000);
 
+    try {
+      if (this.settings.userCounter.enabled) {
+        const { enableTime, lastSubmission } = this.settings.userCounter;
+        let changed = false;
+        if (enableTime) {
+          if ((Date.now() - enableTime > USER_COUNTER_INTERVAL) && (Date.now() - lastSubmission > USER_COUNTER_INTERVAL)) {
+            this.settings.userCounter.lastSubmission = Date.now();
+            changed = true;
+            BdApi.Net.fetch('https://astranika.com/api/analytics/submit').catch(err => { });
+          }
+        } else {
+          this.settings.userCounter.enableTime = Date.now();
+          changed = true;
+        }
+        if (changed) this.saveSettings();
+      }
+    } catch (err) {
+      Logger.stacktrace(this.getName(), 'Failed to load user counter', err);
+    }
+
     if (this.selfTestInited) return;
     this.selfTestFailures = 0;
     this.selfTestInited = true;
   }
   shutdown() {
-    if (!global.ZeresPluginLibrary) return;
     this.__started = false;
     const tryUnpatch = fn => {
       if (typeof fn !== 'function') return;
@@ -1028,11 +1037,11 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         // things can bug out, best to reload tbh, should maybe warn the user?
         fn();
       } catch (e) {
-        ZeresPluginLibrary.Logger.stacktrace(this.getName(), 'Error unpatching', e);
+        Logger.stacktrace(this.getName(), 'Error unpatching', e);
       }
     };
     if (Array.isArray(this.unpatches)) for (let unpatch of this.unpatches) tryUnpatch(unpatch);
-    ZeresPluginLibrary.Patcher.unpatchAll(this.getName());
+    BdApi.Patcher.unpatchAll(this.getName());
     if (this.MessageContextMenuPatch) tryUnpatch(this.MessageContextMenuPatch);
     if (this.ChannelContextMenuPatch) tryUnpatch(this.ChannelContextMenuPatch);
     if (this.GuildContextMenuPatch) tryUnpatch(this.GuildContextMenuPatch);
@@ -1041,7 +1050,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     } catch (e) { }
     this.forceReloadMessages();
     // if (this.keybindListener) this.keybindListener.destroy();
-    if (this.style && this.style.css) ZeresPluginLibrary.PluginUtilities.removeStyle(this.style.css);
+    if (this.style && this.style.css) BdApi.DOM.removeStyle(this.style.css);
     if (this.dataManagerInterval) clearInterval(this.dataManagerInterval);
     // if (this.keybindListenerInterval) clearInterval(this.keybindListenerInterval);
     if (this.selfTestInterval) clearInterval(this.selfTestInterval);
@@ -1061,44 +1070,70 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     //  if (this.selectedChannel) this.cacheChannelMessages(this.selectedChannel.id); // bad idea?
   }
   automaticallyUpdate(tryProxy) {
-    const updateFail = () => XenoLib.Notifications.warning(`[${this.getName()}] Unable to check for updates!`, { timeout: 7500 });
-    new Promise(resolve => {
-      const https = require('https');
-      const req = https.get(tryProxy ? 'https://cors-anywhere.herokuapp.com/https://raw.githubusercontent.com/1Lighty/BetterDiscordPlugins/master/Plugins/MessageLoggerV2/MessageLoggerV2.plugin.js' : 'https://raw.githubusercontent.com/1Lighty/BetterDiscordPlugins/master/Plugins/MessageLoggerV2/MessageLoggerV2.plugin.js', { headers: { 'origin': 'discord.com' } }, res => {
-        let body = '';
-        res.on('data', chunk => ((body += new TextDecoder("utf-8").decode(chunk)), void 0));
-        res.on('end', (rez) => {
-          if (rez.statusCode !== 200) {
-            if (!tryProxy) return this.automaticallyUpdate(true);
-            updateFail();
-            return;
-          }
-          if (!XenoLib.versionComparator(this.getVersion(), XenoLib.extractVersion(body))) return;
-          const fs = require('fs');
-          /*
-           * why are we letting Zere, the braindead American let control BD when he can't even
-           * fucking read clearly documented and well known standards, such as __filename being
-           * the files full fucking path and not just the filename itself, IS IT REALLY SO HARD
-           * TO FUCKING READ?! https://nodejs.org/api/modules.html#modules_filename
-           */
-          const _zerecantcode_path = require('path');
-          const theActualFileNameZere = _zerecantcode_path.join(__dirname, _zerecantcode_path.basename(__filename));
-          fs.writeFileSync(theActualFileNameZere, body);
-          XenoLib.Notifications.success(`[${this.getName()}] Successfully updated!`, { timeout: 0 });
-          // if (BdApi.isSettingEnabled('fork-ps-5') && !this.__isPowerCord) return;
-          BdApi.Plugins.reload(this.getName());
-        });
-      });
-      req.on('error', _ => {
+    BdApi.Net.fetch(
+      tryProxy ?
+        'https://astranika.com/bd/download?plugin=MessageLoggerV2' :
+        'https://raw.githubusercontent.com/1Lighty/BetterDiscordPlugins/master/Plugins/MessageLoggerV2/MessageLoggerV2.plugin.js',
+      { headers: { origin: 'discord.com' } })
+      .then(res => {
+        if (res.ok) return res.text();
+        throw new Error('Network response was not ok ' + response.statusText);
+      })
+      .then(data => {
+        let remoteVersion = data.match(/['"][0-9]+\.[0-9]+\.[0-9]+['"]/i);
+        if (!remoteVersion) throw new Error('Could not extract version from remote');
+        remoteVersion = remoteVersion.toString().replace(/['"]/g, "");
+        if (BdApi.Utils.semverCompare(this.getVersion(), remoteVersion) !== 1) return;
+        const { writeFileSync } = require('fs');
+        const { join, basename } = require('path');
+        writeFileSync(join(__dirname, basename(__filename)));
+        BdApi.UI.showNotification({ title: this.getName(), content: `Successfully updated!`, type: 'success' });
+        BdApi.Plugins.reload(this.getName());
+      })
+      .catch(err => {
+        Logger.stacktrace(this.getName(), 'Error trying to update', err);
         if (!tryProxy) return this.automaticallyUpdate(true);
-        updateFail();
+        BdApi.UI.showNotification({ title: this.getName(), content: `Unable to check for updates!`, duration: 7500 });
       });
-      //req.end();
-    });
+  }
+
+  subscribeObserver(callback, filter) {
+    if (!Array.isArray(this.observerListeners)) this.observerListeners = [];
+    const sub = { callback, filter };
+    this.observerListeners.push(sub);
+    return sub;
+  }
+  subscribeToQuerySelector(callback, selector) {
+    if (!Array.isArray(this.observerListeners)) this.observerListeners = [];
+    const sub = {
+      callback, filter: mutation => {
+        return mutation.target.matches(selector)
+          || Array.from(mutation.addedNodes).concat(Array.from(mutation.removedNodes))
+            .find(n => n instanceof Element && (n.matches(selector) || n.querySelector(selector)));
+      }
+    };
+    this.observerListeners.push(sub);
+    return sub;
+  }
+  unsubscribeObserver(subscription) {
+    if (!this.observerListeners.includes(subscription)) subscription = this.observerListeners.find(s => s.callback === subscription)
+    this.lodash.remove(this.observerListeners, r => r === subscription);
   }
   // title-3qD0b- da-title container-1r6BKw da-container themed-ANHk51 da-themed
   // chatContent-a9vAAp da-chatContent
-  observer({ addedNodes }) {
+  observer(mutations) {
+    if (this.observerListeners?.length) {
+      for (const sub of this.observerListeners) {
+        try {
+          if (sub.filter(mutations)) sub.callback();
+        } catch (err) {
+          Logger.stacktrace(this.getName(), 'Error in observer subscribtion, removing', err);
+          this.unsubscribeObserver(sub.callback);
+        }
+      }
+    }
+
+    const { addedNodes } = mutations;
     let isChat = false;
     let isTitle = false;
     for (const change of addedNodes) {
@@ -1117,10 +1152,10 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
             this.noTintIds = [];
             this.editModifiers = {};
           }
-          if (!this.selectedChannel) return ZeresPluginLibrary.Logger.warn(this.getName(), 'Chat was loaded but no text channel is selected');
+          if (!this.selectedChannel) return Logger.warn(this.getName(), 'Chat was loaded but no text channel is selected');
           if (isTitle && this.settings.showOpenLogsButton) {
             let srch = change.querySelector('div[class*="-search"]') || change.querySelector('div[class*="search_"]');
-            if (!srch) return ZeresPluginLibrary.Logger.warn(this.getName(), 'Observer caught title loading, but no search bar was found! Open Logs button will not show!');
+            if (!srch) return Logger.warn(this.getName(), 'Observer caught title loading, but no search bar was found! Open Logs button will not show!');
             if (this.channelLogButton && srch.parentElement) {
               srch.parentElement.insertBefore(this.channelLogButton, srch); // memory leak..?
             }
@@ -1130,9 +1165,12 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
           const showStuff = (map, name) => {
             if (map[this.selectedChannel.id] && map[this.selectedChannel.id]) {
               if (this.settings.useNotificationsInstead) {
-                XenoLib.Notifications.info(`There are ${map[this.selectedChannel.id]} new ${name} messages in ${this.selectedChannel.name && this.selectedChannel.type !== 3 ? '<#' + this.selectedChannel.id + '>' : 'DMs'}`, { timeout: 3000 });
+                BdApi.UI.showNotification({
+                  title: this.getName(),
+                  content: `There are ${map[this.selectedChannel.id]} new ${name} messages in ${this.selectedChannel.name && this.selectedChannel.type !== 3 ? '#' + this.selectedChannel.name : 'DMs'}`
+                });
               } else {
-                this.showToast(`There are ${map[this.selectedChannel.id]} new ${name} messages in ${this.selectedChannel.name ? '#' + this.selectedChannel.name : 'DMs'}`, {
+                BdApi.UI.showToast(`There are ${map[this.selectedChannel.id]} new ${name} messages in ${this.selectedChannel.name ? '#' + this.selectedChannel.name : 'DMs'}`, {
                   type: 'info',
                   onClick: () => this.openWindow(name),
                   timeout: 3000
@@ -1144,507 +1182,482 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
           if (this.settings.showDeletedCount) showStuff(this.deletedChatMessagesCount, 'deleted');
           if (this.settings.showEditedCount) showStuff(this.editedChatMessagesCount, 'edited');
         } catch (e) {
-          ZeresPluginLibrary.Logger.stacktrace(this.getName(), 'Error in observer', e);
+          Logger.stacktrace(this.getName(), 'Error in observer', e);
         }
         break;
       }
     }
   }
-  buildSetting(data) {
-    const { id } = data;
-    const setting = XenoLib.buildSetting(data);
-    if (id) setting.getElement().id = this.obfuscatedClass(id);
-    return setting;
-  }
-  createSetting(data) {
-    const current = Object.assign({}, data);
-    if (!current.onChange) {
-      current.onChange = value => {
-        this.settings[current.id] = value;
-        if (current.callback) current.callback(value);
-      };
-    }
-    if (typeof current.value === 'undefined') current.value = this.settings[current.id];
-    return this.buildSetting(current);
-  }
-  createGroup(group) {
-    const { name, id, collapsible, shown, settings } = group;
-
-    const list = [];
-    for (let s = 0; s < settings.length; s++) list.push(this.createSetting(settings[s]));
-
-    const settingGroup = new ZeresPluginLibrary.Settings.SettingGroup(name, { shown, collapsible }).append(...list);
-    settingGroup.group.id = id; // should generate the id in here instead?
-    return settingGroup;
-  }
   getSettingsPanel() {
-    // todo, sort out the menu
-    const list = [];
-    // list.push(
-    //   this.createGroup({
-    //     name: 'Keybinds',
-    //     id: this.obfuscatedClass('ml2-settings-keybinds'),
-    //     collapsible: true,
-    //     shown: false,
-    //     settings: [
-    //       {
-    //         name: 'Open menu keybind',
-    //         id: 'openLogKeybind',
-    //         type: 'keybind'
-    //       },
-    //       {
-    //         name: 'Open log filtered by selected channel',
-    //         id: 'openLogFilteredKeybind',
-    //         type: 'keybind'
-    //       },
-    //       {
-    //         name: 'Disable keybinds',
-    //         id: 'disableKeybind',
-    //         type: 'switch'
-    //       }
-    //     ]
-    //   })
-    // );
-    list.push(
-      this.createGroup({
-        name: 'Ignores and overrides',
-        id: this.obfuscatedClass('ml2-settings-ignores-overrides'),
-        collapsible: true,
-        shown: false,
-        settings: [
-          {
-            name: 'Ignore muted servers',
-            id: 'ignoreMutedGuilds',
-            type: 'switch'
-          },
-          {
-            name: 'Ignore muted channels',
-            id: 'ignoreMutedChannels',
-            type: 'switch'
-          },
-          {
-            name: 'Ignore bots',
-            id: 'ignoreBots',
-            type: 'switch'
-          },
-          {
-            name: 'Ignore messages posted by you',
-            id: 'ignoreSelf',
-            type: 'switch'
-          },
-          {
-            name: 'Ignore message edits from you',
-            id: 'ignoreLocalEdits',
-            type: 'switch'
-          },
-          {
-            name: 'Ignore message deletes from you',
-            note: 'Only ignores if you delete your own message.',
-            id: 'ignoreLocalDeletes',
-            type: 'switch'
-          },
-          {
-            name: 'Ignore blocked users',
-            id: 'ignoreBlockedUsers',
-            type: 'switch'
-          },
-          {
-            name: 'Ignore NSFW channels',
-            id: 'ignoreNSFW',
-            type: 'switch'
-          },
-          {
-            name: 'Only log whitelist',
-            id: 'onlyLogWhitelist',
-            type: 'switch'
-          },
-          {
-            name: 'Always log selected channel, regardless of whitelist/blacklist',
-            id: 'alwaysLogSelected',
-            type: 'switch'
-          },
-          {
-            name: 'Always log DMs, regardless of whitelist/blacklist',
-            id: 'alwaysLogDM',
-            type: 'switch'
-          },
-          {
-            name: 'Always log ghost pings, regardless of whitelist/blacklist',
-            note: 'Messages sent in ignored/muted/blacklisted servers and channels will be logged and shown in sent, but only gets saved if a ghost ping occurs.',
-            id: 'alwaysLogGhostPings',
-            type: 'switch'
-          }
-        ]
-      })
+    const div = document.createElement('div');
+    div.id = this.obfuscatedClass('ml2-settings-buttonbox');
+    div.style.display = 'inline-flex';
+    div.appendChild(this.createButton('Changelog', () => this.showChangelog()));
+    div.appendChild(this.createButton('Stats', () => this.showStatsModal()));
+    div.appendChild(this.createButton('Donate', () => window.open('https://paypal.me/lighty13')));
+    div.appendChild(
+      this.createButton('Support server', () => BdApi.UI.showInviteModal('NYvWdN5'))
     );
-    list.push(
-      this.createGroup({
-        name: 'Display settings',
-        id: this.obfuscatedClass('ml2-settings-display'),
-        collapsible: true,
-        shown: false,
-        settings: [
-          {
-            name: 'Display dates with timestamps',
-            id: 'displayDates',
-            type: 'switch',
-            callback: () => {
-              if (this.selectedChannel) {
-                // change NOW
-                this.invalidateAllChannelCache();
-                this.cacheChannelMessages(this.selectedChannel.id);
+    div.appendChild(this.createButton('Help', () => this.showLoggerHelpModal()));
+    let button = div.firstElementChild;
+    while (button) {
+      button.style.marginRight = button.style.marginLeft = `5px`;
+      button = button.nextElementSibling;
+    }
+
+    const { TextElement, tools: { createMomentObject } } = this;
+
+    class TimerWrapper extends React.PureComponent {
+      constructor(...args) {
+        super(...args);
+        this.props.cbref.current = () => {
+          const value = this.props.value();
+          this.moment = createMomentObject(value + this.props.time);
+          this.setState({ value });
+        };
+        this.state = { value: this.props.value() };
+        this.moment = createMomentObject(this.state.value + this.props.time);
+      }
+      componentDidUpdate() {
+        this.moment = createMomentObject(this.state.value + this.props.time);
+      }
+      componentDidMount() {
+        const { moment } = this;
+        const vv = moment.clone().seconds(0).add(1, 'm').diff(moment);
+        this.timer = setInterval(() => {
+          clearInterval(this.timer);
+          this.timer = setInterval(() => this.forceUpdate(), 60 * 1000);
+          this.forceUpdate();
+        }, vv);
+      }
+      componentWillUnmount() {
+        if (this.timer) clearInterval(this.timer);
+      }
+      render() {
+        const { value } = this.state;
+        const { after, active, inactive, time } = this.props;
+        const future = (value + time);
+        return React.createElement(TextElement, {}, value ? Date.now() > future ? active : `${after}${this.moment.fromNow()}` : inactive);
+      }
+    }
+
+    const activeRef = { current: null };
+    const lastRef = { current: null };
+
+    return BdApi.UI.buildSettingsPanel({
+      settings: [
+        {
+          name: 'Ignores and overrides',
+          id: this.obfuscatedClass('ml2-settings-ignores-overrides'),
+          type: 'category',
+          collapsible: true,
+          shown: false,
+          settings: [
+            {
+              name: 'Ignore muted servers',
+              id: 'ignoreMutedGuilds',
+              type: 'switch',
+              value: this.settings.ignoreMutedGuilds
+            },
+            {
+              name: 'Ignore muted channels',
+              id: 'ignoreMutedChannels',
+              type: 'switch',
+              value: this.settings.ignoreMutedChannels
+            },
+            {
+              name: 'Ignore bots',
+              id: 'ignoreBots',
+              type: 'switch',
+              value: this.settings.ignoreBots
+            },
+            {
+              name: 'Ignore messages posted by you',
+              id: 'ignoreSelf',
+              type: 'switch',
+              value: this.settings.ignoreSelf
+            },
+            {
+              name: 'Ignore message edits from you',
+              id: 'ignoreLocalEdits',
+              type: 'switch',
+              value: this.settings.ignoreLocalEdits
+            },
+            {
+              name: 'Ignore message deletes from you',
+              note: 'Only ignores if you delete your own message.',
+              id: 'ignoreLocalDeletes',
+              type: 'switch',
+              value: this.settings.ignoreLocalDeletes
+            },
+            {
+              name: 'Ignore blocked users',
+              id: 'ignoreBlockedUsers',
+              type: 'switch',
+              value: this.settings.ignoreBlockedUsers
+            },
+            {
+              name: 'Ignore NSFW channels',
+              id: 'ignoreNSFW',
+              type: 'switch',
+              value: this.settings.ignoreNSFW
+            },
+            {
+              name: 'Only log whitelist',
+              id: 'onlyLogWhitelist',
+              type: 'switch',
+              value: this.settings.onlyLogWhitelist
+            },
+            {
+              name: 'Always log selected channel, regardless of whitelist/blacklist',
+              id: 'alwaysLogSelected',
+              type: 'switch',
+              value: this.settings.alwaysLogSelected
+            },
+            {
+              name: 'Always log DMs, regardless of whitelist/blacklist',
+              id: 'alwaysLogDM',
+              type: 'switch',
+              value: this.settings.alwaysLogDM
+            },
+            {
+              name: 'Always log ghost pings, regardless of whitelist/blacklist',
+              note: 'Messages sent in ignored/muted/blacklisted servers and channels will be logged and shown in sent, but only gets saved if a ghost ping occurs.',
+              id: 'alwaysLogGhostPings',
+              type: 'switch',
+              value: this.settings.alwaysLogGhostPings
+            }
+          ]
+        },
+        {
+          name: 'Display settings',
+          id: this.obfuscatedClass('ml2-settings-display'),
+          type: 'category',
+          collapsible: true,
+          shown: false,
+          settings: [
+            {
+              name: 'Display dates with timestamps',
+              id: 'displayDates',
+              type: 'switch',
+              value: this.settings.displayDates,
+              onChange: () => {
+                if (this.selectedChannel) {
+                  // change NOW
+                  this.invalidateAllChannelCache();
+                  this.cacheChannelMessages(this.selectedChannel.id);
+                }
               }
-            }
-          },
-          {
-            name: 'Display deleted messages in chat',
-            id: 'showDeletedMessages',
-            type: 'switch',
-            callback: () => {
-              this.invalidateAllChannelCache();
-              if (this.selectedChannel) this.cacheChannelMessages(this.selectedChannel.id);
-            }
-          },
-          {
-            name: 'Display edited messages in chat',
-            id: 'showEditedMessages',
-            type: 'switch',
-            callback: () => this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE_CONTENT' })
-          },
-          {
-            name: 'Max number of shown edits',
-            id: 'maxShownEdits',
-            type: 'textbox',
-            onChange: val => {
-              if (isNaN(val)) return this.showToast('Value must be a number!', { type: 'error' });
-              this.settings.maxShownEdits = parseInt(val);
-              this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE_CONTENT' });
-            }
-          },
-          {
-            name: 'Show oldest edit instead of newest if over the shown edits limit',
-            id: 'hideNewerEditsFirst',
-            type: 'switch',
-            callback: () => this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE_CONTENT' })
-          },
-          {
-            name: 'Use red background instead of red text for deleted messages',
-            id: 'useAlternativeDeletedStyle',
-            type: 'switch',
-            callback: () => this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE' })
-          },
-          {
-            name: 'Display purged messages in chat',
-            id: 'showPurgedMessages',
-            type: 'switch',
-            callback: () => {
-              this.invalidateAllChannelCache();
-              if (this.selectedChannel) this.cacheChannelMessages(this.selectedChannel.id);
-            }
-          },
-          {
-            name: 'Restore deleted messages after reload',
-            id: 'restoreDeletedMessages',
-            type: 'switch',
-            callback: val => {
-              if (val) {
+            },
+            {
+              name: 'Display deleted messages in chat',
+              id: 'showDeletedMessages',
+              type: 'switch',
+              value: this.settings.showDeletedMessages,
+              onChange: () => {
                 this.invalidateAllChannelCache();
                 if (this.selectedChannel) this.cacheChannelMessages(this.selectedChannel.id);
               }
-            }
-          },
-          {
-            name: 'Show amount of new deleted messages when entering a channel',
-            id: 'showDeletedCount',
-            type: 'switch'
-          },
-          {
-            name: 'Show amount of new edited messages when entering a channel',
-            id: 'showEditedCount',
-            type: 'switch'
-          },
-          {
-            name: 'Display update notes',
-            id: 'displayUpdateNotes',
-            type: 'switch'
-          },
-          {
-            name: 'Menu sort direction',
-            id: 'reverseOrder',
-            type: 'radio',
-            options: [
-              {
-                name: 'New - old',
-                value: false
-              },
-              {
-                name: 'Old - new',
-                value: true
+            },
+            {
+              name: 'Display edited messages in chat',
+              id: 'showEditedMessages',
+              type: 'switch',
+              value: this.settings.showEditedMessages,
+              onChange: () => this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE_CONTENT' })
+            },
+            {
+              name: 'Max number of shown edits',
+              id: 'maxShownEdits',
+              type: 'text',
+              value: this.settings.maxShownEdits,
+              onChange: val => {
+                if (isNaN(val)) return BdApi.UI.showToast('Value must be a number!', { type: 'error' });
+                this.settings.maxShownEdits = parseInt(val);
+                this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE_CONTENT' });
               }
-            ]
-          },
-          {
-            name: 'Use XenoLib notifications instead of toasts',
-            note: "This works for edit, send, delete and purge toasts, as well as delete and edit count toasts. Toggle it if you don't know what this does.",
-            id: 'useNotificationsInstead',
-            type: 'switch',
-            callback: e => (e ? XenoLib.Notifications.success('Using Xenolib notifications', { timeout: 5000 }) : this.showToast('Using toasts', { type: 'success', timeout: 5000 }))
-          }
-        ]
-      })
-    );
-    list.push(
-      this.createGroup({
-        name: 'Misc settings',
-        id: this.obfuscatedClass('ml2-settings-misc'),
-        collapsible: true,
-        shown: false,
-        settings: [
-          {
-            name: 'Disable saving data. Logged messages are erased after reload/restart. Disables auto backup.',
-            id: 'dontSaveData',
-            type: 'switch',
-            callback: val => {
-              if (!val) this.saveData();
-              if (!val && this.settings.autoBackup) this.saveBackup();
+            },
+            {
+              name: 'Show oldest edit instead of newest if over the shown edits limit',
+              id: 'hideNewerEditsFirst',
+              type: 'switch',
+              value: this.settings.hideNewerEditsFirst,
+              onChange: () => this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE_CONTENT' })
+            },
+            {
+              name: 'Use red background instead of red text for deleted messages',
+              id: 'useAlternativeDeletedStyle',
+              type: 'switch',
+              value: this.settings.useAlternativeDeletedStyle,
+              onChange: () => this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE' })
+            },
+            {
+              name: 'Display purged messages in chat',
+              id: 'showPurgedMessages',
+              type: 'switch',
+              value: this.settings.showPurgedMessages,
+              onChange: () => {
+                this.invalidateAllChannelCache();
+                if (this.selectedChannel) this.cacheChannelMessages(this.selectedChannel.id);
+              }
+            },
+            {
+              name: 'Restore deleted messages after reload',
+              id: 'restoreDeletedMessages',
+              type: 'switch',
+              value: this.settings.restoreDeletedMessages,
+              onChange: val => {
+                if (val) {
+                  this.invalidateAllChannelCache();
+                  if (this.selectedChannel) this.cacheChannelMessages(this.selectedChannel.id);
+                }
+              }
+            },
+            {
+              name: 'Show amount of new deleted messages when entering a channel',
+              id: 'showDeletedCount',
+              type: 'switch',
+              value: this.settings.showDeletedCount
+            },
+            {
+              name: 'Show amount of new edited messages when entering a channel',
+              id: 'showEditedCount',
+              type: 'switch',
+              value: this.settings.showEditedCount
+            },
+            {
+              name: 'Display update notes',
+              id: 'displayUpdateNotes',
+              type: 'switch',
+              value: this.settings.displayUpdateNotes
+            },
+            {
+              name: 'Menu sort direction',
+              id: 'reverseOrder',
+              type: 'radio',
+              value: this.settings.reverseOrder,
+              options: [
+                {
+                  name: 'New - old',
+                  value: false
+                },
+                {
+                  name: 'Old - new',
+                  value: true
+                }
+              ]
+            },
+            {
+              name: 'Use notifications instead of toasts',
+              note: "This works for edit, send, delete and purge toasts, as well as delete and edit count toasts. Toggle it if you don't know what this does.",
+              id: 'useNotificationsInstead',
+              type: 'switch',
+              value: this.settings.useNotificationsInstead,
+              onChange: e => (e ? BdApi.UI.showNotification({ title: this.getName(), content: 'Using notifications', type: 'success' }) : BdApi.UI.showToast('Using toasts', { type: 'success', timeout: 5000 }))
             }
-          },
-          {
-            name: "Auto backup data (won't fully prevent losing data, just prevent total data loss)",
-            id: 'autoBackup',
-            type: 'switch',
-            callback: val => {
-              if (val && !this.settings.dontSaveData) this.saveBackup();
-            }
-          } /*
+          ]
+        },
+        {
+          name: 'Misc settings',
+          id: this.obfuscatedClass('ml2-settings-misc'),
+          type: 'category',
+          collapsible: true,
+          shown: false,
+          settings: [
+            {
+              name: 'Disable saving data. Logged messages are erased after reload/restart. Disables auto backup.',
+              id: 'dontSaveData',
+              type: 'switch',
+              value: this.settings.dontSaveData,
+              onChange: val => {
+                if (!val) this.saveData();
+                if (!val && this.settings.autoBackup) this.saveBackup();
+              }
+            },
+            {
+              name: "Auto backup data (won't fully prevent losing data, just prevent total data loss)",
+              id: 'autoBackup',
+              type: 'switch',
+              value: this.settings.autoBackup,
+              onChange: val => {
+                if (val && !this.settings.dontSaveData) this.saveBackup();
+              }
+            } /*
                         {
                             // no time, TODO!
                             name: 'Deleted messages color',
                             id: 'deletedMessageColor',
                             type: 'color'
                         }, */,
-          {
-            name: 'Aggresive message caching (makes sure we have the data of any deleted or edited messages)',
-            id: 'aggresiveMessageCaching',
-            type: 'switch'
-          },
-          {
-            name: 'Cache all images by storing them locally in the MLV2_IMAGE_CACHE folder inside the plugins folder',
-            id: 'cacheAllImages',
-            type: 'switch'
-          },
-          {
-            name: "Don't delete cached images",
-            note: "If the message the image is from is erased from data, the cached image will be kept. You'll have to monitor disk usage on your own!",
-            id: 'dontDeleteCachedImages',
-            type: 'switch'
-          },
-          {
-            name: 'Display open logs button next to the search box top right in channels',
-            id: 'showOpenLogsButton',
-            type: 'switch',
-            callback: val => {
-              if (val) return this.addOpenLogsButton();
-              this.removeOpenLogsButton();
+            {
+              name: 'Aggresive message caching (makes sure we have the data of any deleted or edited messages)',
+              id: 'aggresiveMessageCaching',
+              type: 'switch',
+              value: this.settings.aggresiveMessageCaching
+            },
+            {
+              name: 'Cache all images by storing them locally in the MLV2_IMAGE_CACHE folder inside the plugins folder',
+              id: 'cacheAllImages',
+              type: 'switch',
+              value: this.settings.cacheAllImages
+            },
+            {
+              name: "Don't delete cached images",
+              note: "If the message the image is from is erased from data, the cached image will be kept. You'll have to monitor disk usage on your own!",
+              id: 'dontDeleteCachedImages',
+              type: 'switch',
+              value: this.settings.dontDeleteCachedImages
+            },
+            {
+              name: 'Display open logs button next to the search box top right in channels',
+              id: 'showOpenLogsButton',
+              type: 'switch',
+              value: this.settings.showOpenLogsButton,
+              onChange: val => {
+                if (val) return this.addOpenLogsButton();
+                this.removeOpenLogsButton();
+              }
+            },
+            {
+              name: 'Block spam edit notifications (if enabled)',
+              id: 'blockSpamEdit',
+              type: 'switch',
+              value: this.settings.blockSpamEdit
             }
-          },
-          {
-            name: 'Block spam edit notifications (if enabled)',
-            id: 'blockSpamEdit',
-            type: 'switch'
-          }
-        ]
-      })
-    );
-    list.push(
-      this.createGroup({
-        name: 'Toast notifications for guilds',
-        id: this.obfuscatedClass('ml2-settings-toast-guilds'),
-        collapsible: true,
-        shown: false,
-        settings: [
-          {
-            name: 'Message sent',
-            id: 'sent',
-            type: 'switch',
-            value: this.settings.toastToggles.sent,
-            onChange: val => {
-              this.settings.toastToggles.sent = val;
-            }
-          },
-          {
-            name: 'Message edited',
-            id: 'edited',
-            type: 'switch',
-            value: this.settings.toastToggles.edited,
-            onChange: val => {
-              this.settings.toastToggles.edited = val;
-            }
-          },
-          {
-            name: 'Message deleted',
-            id: 'deleted',
-            type: 'switch',
-            value: this.settings.toastToggles.deleted,
-            onChange: val => {
-              this.settings.toastToggles.deleted = val;
-            }
-          },
-          {
-            name: 'Ghost pings',
-            id: 'ghostPings',
-            type: 'switch',
-            value: this.settings.toastToggles.ghostPings,
-            onChange: val => {
-              this.settings.toastToggles.ghostPings = val;
-            }
-          },
-          {
-            name: 'Disable toasts for local user (yourself)',
-            id: 'disableToastsForLocal',
-            type: 'switch',
-            value: this.settings.toastToggles.disableToastsForLocal,
-            onChange: val => {
-              this.settings.toastToggles.disableToastsForLocal = val;
-            }
-          }
-        ]
-      })
-    );
-
-    list.push(
-      this.createGroup({
-        name: 'Toast notifications for DMs',
-        id: this.obfuscatedClass('ml2-settings-toast-dms'),
-        collapsible: true,
-        shown: false,
-        settings: [
-          {
-            name: 'Message sent',
-            id: 'sent',
-            type: 'switch',
-            value: this.settings.toastTogglesDMs.sent,
-            onChange: val => {
-              this.settings.toastTogglesDMs.sent = val;
-            }
-          },
-          {
-            name: 'Message edited',
-            id: 'edited',
-            type: 'switch',
-            value: this.settings.toastTogglesDMs.edited,
-            onChange: val => {
-              this.settings.toastTogglesDMs.edited = val;
-            }
-          },
-          {
-            name: 'Message deleted',
-            id: 'deleted',
-            type: 'switch',
-            value: this.settings.toastTogglesDMs.deleted,
-            onChange: val => {
-              this.settings.toastTogglesDMs.deleted = val;
-            }
-          },
-          {
-            name: 'Ghost pings',
-            id: 'ghostPings',
-            type: 'switch',
-            value: this.settings.toastTogglesDMs.ghostPings,
-            onChange: val => {
-              this.settings.toastTogglesDMs.ghostPings = val;
-            }
-          }
-        ]
-      })
-    );
-
-    list.push(
-      this.createGroup({
-        name: 'Message caps',
-        id: this.obfuscatedClass('ml2-settings-caps'),
-        collapsible: true,
-        shown: false,
-        settings: [
-          {
-            name: 'Cached messages cap',
-            note: 'Max number of sent messages logger should keep track of',
-            id: 'messageCacheCap',
-            type: 'textbox',
-            onChange: val => {
-              if (isNaN(val)) return this.showToast('Value must be a number!', { type: 'error' });
-              this.settings.messageCacheCap = parseInt(val);
-              clearInterval(this.dataManagerInterval);
-              this.dataManagerInterval = setInterval(() => {
-                this.handleMessagesCap();
-              }, 60 * 1000 * 5);
-            }
-          },
-          {
-            name: 'Saved messages cap',
-            note: "Max number of messages saved to disk, this limit is for deleted, edited and purged INDIVIDUALLY. So if you have it set to 1000, it'll be 1000 edits, 1000 deletes and 1000 purged messages max",
-            id: 'savedMessagesCap',
-            type: 'textbox',
-            onChange: val => {
-              if (isNaN(val)) return this.showToast('Value must be a number!', { type: 'error' });
-              this.settings.savedMessagesCap = parseInt(val);
-              clearInterval(this.dataManagerInterval);
-              this.dataManagerInterval = setInterval(() => {
-                this.handleMessagesCap();
-              }, 60 * 1000 * 5);
-            }
-          },
-          {
-            name: 'Menu message render cap',
-            note: 'How many messages will show before the LOAD MORE button will show',
-            id: 'renderCap',
-            type: 'textbox',
-            onChange: val => {
-              if (isNaN(val)) return this.showToast('Value must be a number!', { type: 'error' });
-              this.settings.renderCap = parseInt(val);
-              clearInterval(this.dataManagerInterval);
-            }
-          }
-        ]
-      })
-    );
-
-    list.push(
-      this.createGroup({
-        name: 'Advanced',
-        id: this.obfuscatedClass('ml2-settings-advanced'),
-        collapsible: true,
-        shown: false,
-        settings: [
-          {
-            name: 'Obfuscate CSS classes',
-            note: 'Enable this if some plugin, library or theme is blocking you from using the plugin',
-            id: 'obfuscateCSSClasses',
-            type: 'switch'
-          },
-          {
-            name: 'Automatic updates',
-            note: "Do NOT disable unless you really don't want automatic updates",
-            id: 'autoUpdate',
-            type: 'switch',
-            callback: val => {
-              if (val) {
-                this._autoUpdateInterval = setInterval(_ => this.automaticallyUpdate(), 1000 * 60 * 15); // 15 minutes
-                this.automaticallyUpdate();
-              } else {
-                clearInterval(this._autoUpdateInterval);
-                try {
-                  ZeresPluginLibrary.PluginUpdater.checkForUpdate(this.getName(), this.getVersion(), 'https://raw.githubusercontent.com/1Lighty/BetterDiscordPlugins/master/Plugins/MessageLoggerV2/MessageLoggerV2.plugin.js');
-                } catch (err) { }
+          ]
+        },
+        {
+          name: 'Toast notifications for DMs',
+          id: this.obfuscatedClass('ml2-settings-toast-dms'),
+          type: 'category',
+          collapsible: true,
+          shown: false,
+          settings: [
+            {
+              name: 'Message sent',
+              id: 'sent',
+              type: 'switch',
+              value: this.settings.toastTogglesDMs.sent,
+              onChange: val => {
+                this.settings.toastTogglesDMs.sent = val;
+              }
+            },
+            {
+              name: 'Message edited',
+              id: 'edited',
+              type: 'switch',
+              value: this.settings.toastTogglesDMs.edited,
+              onChange: val => {
+                this.settings.toastTogglesDMs.edited = val;
+              }
+            },
+            {
+              name: 'Message deleted',
+              id: 'deleted',
+              type: 'switch',
+              value: this.settings.toastTogglesDMs.deleted,
+              onChange: val => {
+                this.settings.toastTogglesDMs.deleted = val;
+              }
+            },
+            {
+              name: 'Ghost pings',
+              id: 'ghostPings',
+              type: 'switch',
+              value: this.settings.toastTogglesDMs.ghostPings,
+              onChange: val => {
+                this.settings.toastTogglesDMs.ghostPings = val;
               }
             }
-          },
-          {
-            name: 'Contextmenu submenu name',
-            note: "Instead of saying Message Logger, make it say something else, so it's screenshot friendly",
-            id: 'contextmenuSubmenuName',
-            type: 'textbox'
-          } /* ,
+          ]
+        },
+        {
+          name: 'Message caps',
+          id: this.obfuscatedClass('ml2-settings-caps'),
+          type: 'category',
+          collapsible: true,
+          shown: false,
+          settings: [
+            {
+              name: 'Cached messages cap',
+              note: 'Max number of sent messages logger should keep track of',
+              id: 'messageCacheCap',
+              type: 'text',
+              value: this.settings.messageCacheCap,
+              onChange: val => {
+                if (isNaN(val)) return BdApi.UI.showToast('Value must be a number!', { type: 'error' });
+                this.settings.messageCacheCap = parseInt(val);
+                clearInterval(this.dataManagerInterval);
+                this.dataManagerInterval = setInterval(() => {
+                  this.handleMessagesCap();
+                }, 60 * 1000 * 5);
+              }
+            },
+            {
+              name: 'Saved messages cap',
+              note: "Max number of messages saved to disk, this limit is for deleted, edited and purged INDIVIDUALLY. So if you have it set to 1000, it'll be 1000 edits, 1000 deletes and 1000 purged messages max",
+              id: 'savedMessagesCap',
+              type: 'text',
+              value: this.settings.savedMessagesCap,
+              onChange: val => {
+                if (isNaN(val)) return BdApi.UI.showToast('Value must be a number!', { type: 'error' });
+                this.settings.savedMessagesCap = parseInt(val);
+                clearInterval(this.dataManagerInterval);
+                this.dataManagerInterval = setInterval(() => {
+                  this.handleMessagesCap();
+                }, 60 * 1000 * 5);
+              }
+            },
+            {
+              name: 'Menu message render cap',
+              note: 'How many messages will show before the LOAD MORE button will show',
+              id: 'renderCap',
+              type: 'text',
+              value: this.settings.renderCap,
+              onChange: val => {
+                if (isNaN(val)) return BdApi.UI.showToast('Value must be a number!', { type: 'error' });
+                this.settings.renderCap = parseInt(val);
+                clearInterval(this.dataManagerInterval);
+              }
+            }
+          ]
+        },
+        {
+          name: 'Advanced',
+          id: this.obfuscatedClass('ml2-settings-advanced'),
+          type: 'category',
+          collapsible: true,
+          shown: false,
+          settings: [
+            {
+              name: 'Obfuscate CSS classes',
+              note: 'Enable this if some plugin, library or theme is blocking you from using the plugin',
+              id: 'obfuscateCSSClasses',
+              type: 'switch',
+              value: this.settings.obfuscateCSSClasses
+            },
+            {
+              name: 'Automatic updates',
+              note: "Do NOT disable unless you really don't want automatic updates",
+              id: 'autoUpdate',
+              type: 'switch',
+              value: this.settings.autoUpdate,
+              callback: val => {
+                if (val) {
+                  this._autoUpdateInterval = setInterval(_ => this.automaticallyUpdate(), 1000 * 60 * 15); // 15 minutes
+                  this.automaticallyUpdate();
+                } else {
+                  clearInterval(this._autoUpdateInterval);
+                }
+              }
+            },
+            {
+              name: 'Contextmenu submenu name',
+              note: "Instead of saying Message Logger, make it say something else, so it's screenshot friendly",
+              id: 'contextmenuSubmenuName',
+              type: 'text',
+              value: this.settings.contextmenuSubmenuName
+            } /* ,
           {
             name: 'Image cache directory',
             note: 'Press enter to save the path',
@@ -1678,44 +1691,131 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
               //this.settings.imageCacheDir = val;
             }
           } */
-        ]
-      })
-    );
-
-    const div = document.createElement('div');
-    div.id = this.obfuscatedClass('ml2-settings-buttonbox');
-    div.style.display = 'inline-flex';
-    div.appendChild(this.createButton('Changelog', () => XenoLib.showChangelog(`${this.getName()} has been updated!`, this.getVersion(), this.getChanges())));
-    div.appendChild(this.createButton('Stats', () => this.showStatsModal()));
-    div.appendChild(this.createButton('Donate', () => window.open('https://paypal.me/lighty13')));
-    div.appendChild(
-      this.createButton('Support server', () => BdApi.UI.showInviteModal('NYvWdN5'))
-    );
-    div.appendChild(this.createButton('Help', () => this.showLoggerHelpModal()));
-    let button = div.firstElementChild;
-    while (button) {
-      button.style.marginRight = button.style.marginLeft = `5px`;
-      button = button.nextElementSibling;
-    }
-
-    list.push(div);
-
-    return ZeresPluginLibrary.Settings.SettingPanel.build(_ => this.saveSettings(), ...list);
+          ]
+        },
+        {
+          name: 'User count',
+          id: this.obfuscatedClass('ml2-settings-usercounter'),
+          type: 'category',
+          collapsible: true,
+          shown: false,
+          settings: [
+            {
+              name: 'Enable user counter',
+              note: 'Only active the next day after enabling this setting, enabling will mean you\'re anonymously counted in the user count',
+              id: 'enabled',
+              type: 'switch',
+              value: this.settings.userCounter.enabled,
+              onChange: val => {
+                this.settings.userCounter.enableTime = val ? Date.now() : 0;
+                this.settings.userCounter.lastSubmission = val ? Date.now() : 0;
+                this.settings.userCounter.enabled = val;
+                this.saveSettings();
+                activeRef?.current();
+                lastRef?.current();
+              }
+            },
+            {
+              type: 'custom',
+              id: this.obfuscatedClass('ml2-settings-enableTime'),
+              children: React.createElement(TimerWrapper, {
+                after: 'User counter will be active ',
+                active: 'User counter is currently active',
+                inactive: 'User counter is currently inactive',
+                time: USER_COUNTER_INTERVAL,
+                value: () => this.settings.userCounter.enableTime,
+                cbref: activeRef
+              })
+            },
+            {
+              type: 'custom',
+              id: this.obfuscatedClass('ml2-settings-lastSubmission'),
+              children: React.createElement(TimerWrapper, {
+                after: 'Next user counter submission will be ',
+                active: 'User counter submission will be submitted on next load',
+                inactive: 'User counter submissions are inactive',
+                time: USER_COUNTER_INTERVAL,
+                value: () => this.settings.userCounter.lastSubmission,
+                cbref: lastRef
+              })
+            }
+          ]
+        },
+        {
+          type: 'custom',
+          id: this.obfuscatedClass('ml2-settings-footer'),
+          children: React.createElement(BdApi.ReactUtils.wrapElement(div))
+        }
+      ],
+      onChange: (category, id, value) => {
+        switch (category) {
+          case this.obfuscatedClass('ml2-settings-toast-dms'): this.settings.toastTogglesDMs[id] = value;
+          case this.obfuscatedClass('ml2-settings-caps'):
+          case this.obfuscatedClass('ml2-settings-usercounter'): break;
+          default: {
+            this.settings[id] = value;
+          }
+        }
+        this.saveSettings();
+      }
+    });
   }
   /* ==================================================-|| START HELPERS ||-================================================== */
+  findInReactTree(tree, filter, options) {
+    return BdApi.Utils.findInTree(tree, filter, { walkable: ["props", "children", "child", "sibling"] });
+  }
+  getClass(arg, thrw) {
+    try {
+      const args = arg.split(' ');
+      return BdApi.Webpack.getByKeys(...args)[args[args.length - 1]];
+    } catch (e) {
+      if (thrw) throw e;
+      if (!this.getClass.__warns) this.getClass.__warns = [];
+      if (this.localUser.id === '239513071272329217' && !this.getClass.__warns[arg] || Date.now() - this.getClass.__warns[arg] > 1000 * 60) {
+        Logger.warn(this.getName(), `Failed to get class with props ${arg}`, e);
+        this.getClass.__warns[arg] = Date.now();
+      }
+      return '';
+    }
+  };
+  getSingleClass(arg, thrw) {
+    try {
+      return this.getClass(arg, thrw).split(' ')[0];
+    } catch (e) {
+      if (thrw) throw e;
+      if (!this.getSingleClass.__warns) this.getSingleClass.__warns = [];
+      if (this.localUser.id === '239513071272329217' && !this.getSingleClass.__warns[arg] || Date.now() - this.getSingleClass.__warns[arg] > 1000 * 60) {
+        Logger.warn(this.getName(), `Failed to get class with props ${arg}`, e);
+        this.getSingleClass.__warns[arg] = Date.now();
+      }
+      return '';
+    }
+  };
+  loadData(name, key, defaultData) {
+    const { lodash } = this;
+    try {
+      return lodash.mergeWith(defaultData ? lodash.cloneDeep(defaultData) : {}, BdApi.Data.load(name, key), (_, b) => {
+        if (lodash.isArray(b)) return b;
+      });
+    } catch (err) {
+      Logger.error(this.getName(), 'Unable to load data: ', err);
+      if (returnNull) return null;
+      return lodash.cloneDeep(defaultData);
+    }
+  }
   saveSettings() {
-    ZeresPluginLibrary.PluginUtilities.saveSettings(this.getName(), this.settings);
+    BdApi.Data.save(this.getName(), 'settings', this.settings);
   }
   handleDataSaving() {
     // saveData/setPluginData is synchronous, can get slow with bigger files
-    if (!this.handleDataSaving.errorPageClass) this.handleDataSaving.errorPageClass = '.' + XenoLib.getClass('errorPage');
+    if (!this.handleDataSaving.errorPageClass) this.handleDataSaving.errorPageClass = '.' + this.getClass('errorPage');
     /* refuse saving on error page */
     if (!this.messageRecord || document.querySelector(this.handleDataSaving.errorPageClass)) return; /* did we crash? */
     if (!Object.keys(this.messageRecord).length) return BdApi.Data.delete(this.getName() + 'Data', 'data');
     const callback = err => {
       if (err) {
-        XenoLib.Notifications.error('There has been an error saving the data file');
-        ZeresPluginLibrary.Logger.stacktrace(this.getName(), 'There has been an error saving the data file', err);
+        BdApi.UI.showNotification({ title: this.getName(), content: 'There has been an error saving the data file', type: 'error' });
+        Logger.stacktrace(this.getName(), 'There has been an error saving the data file', err);
       }
       if (this.settings.autoBackup) {
         if (this.saveBackupTimeout) this.autoBackupSaveInterupts++;
@@ -1741,7 +1841,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         callback
       );
     } else {
-      ZeresPluginLibrary.PluginUtilities.saveData(this.getName() + 'Data', 'data', {
+      BdApi.Data.save(this.getName() + 'Data', 'data', {
         messageRecord: this.messageRecord,
         deletedMessageRecord: this.deletedMessageRecord,
         editedMessageRecord: this.editedMessageRecord,
@@ -1761,21 +1861,21 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         loadedData = BdApi.Data.load(name, key);
       } catch (err) { }
       if (loadedData) for (const key in data) loadedData[key] = data[key];
-      this.nodeModules.fs.writeFile(this.__isPowerCord ? BdApi.__getPluginConfigPath(name) : this.nodeModules.path.join(this.pluginDir, `${name}.config.json`), JSON.stringify({ [key]: data }), callback);
+      this.nodeModules.fs.writeFile(this.nodeModules.path.join(this.pluginDir, `${name}.config.json`), JSON.stringify({ [key]: data }), callback);
     } catch (e) {
-      XenoLib.Notifications.error('There has been an error saving the data file');
-      ZeresPluginLibrary.Logger.stacktrace(this.getName(), 'There has been an error saving the data file', e);
+      BdApi.UI.showNotification({ title: this.getName(), content: 'There has been an error saving the data file', type: 'error' });
+      Logger.stacktrace(this.getName(), 'There has been an error saving the data file', e);
     }
   }
   saveBackup() {
     const callback = err => {
       if (err) {
-        XenoLib.Notifications.error('There has been an error saving the data file');
-        ZeresPluginLibrary.Logger.stacktrace(this.getName(), 'There has been an error saving the data file', err);
+        BdApi.UI.showNotification({ title: this.getName(), content: 'There has been an error saving the data file', type: 'error' });
+        Logger.stacktrace(this.getName(), 'There has been an error saving the data file', err);
       }
       this.saveBackupTimeout = 0;
       this.autoBackupSaveInterupts = 0;
-      if (!XenoLib.loadData(this.getName() + 'DataBackup', 'data').messageRecord) this.saveBackupTimeout = setTimeout(() => this.saveBackup, 300); // don't be taxing
+      if (!this.loadData(this.getName() + 'DataBackup', 'data').messageRecord) this.saveBackupTimeout = setTimeout(() => this.saveBackup, 300); // don't be taxing
     };
     const useEfficient = !window.ED;
     if (useEfficient) {
@@ -1791,7 +1891,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         callback
       );
     } else {
-      ZeresPluginLibrary.PluginUtilities.saveData(this.getName() + 'DataBackup', 'data', {
+      BdApi.Data.save(this.getName() + 'DataBackup', 'data', {
         messageRecord: this.messageRecord,
         deletedMessageRecord: this.deletedMessageRecord,
         editedMessageRecord: this.editedMessageRecord,
@@ -1890,7 +1990,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     return ret;
   }
   createMiniFormattedData(message) {
-    message = XenoLib.DiscordUtils.cloneDeep(message);
+    message = this.lodash.cloneDeep(message);
     const obj = {
       message: this.cleanupMessageObject(message), // works!
       local_mentioned: this.tools.isMentioned(message, this.localUser.id),
@@ -1910,7 +2010,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     return obj;
   }
   getSelectedTextChannel() {
-    return this.ChannelStore.getChannel(ZeresPluginLibrary.DiscordModules.SelectedChannelStore.getChannelId());
+    return this.ChannelStore.getChannel(this.SelectedChannelStore.getChannelId());
   }
   invalidateAllChannelCache() {
     for (let channelId in this.channelMessages) this.invalidateChannelCache(channelId);
@@ -1941,7 +2041,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         this.cachedMessageRecord.push(...final);
       })
       .catch(err => {
-        ZeresPluginLibrary.Logger.stacktrace(this.getName(), `Error caching messages from ${channelId} around ${messageId}`, err);
+        Logger.stacktrace(this.getName(), `Error caching messages from ${channelId} around ${messageId}`, err);
       });
   }
   formatMarkup(content, channelId) {
@@ -1968,48 +2068,17 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
       try {
         root.unmount();
       } catch (e) {
-        ZeresPluginLibrary.Logger.stacktrace(this.getName(), 'Error unmounting markup', e);
+        Logger.stacktrace(this.getName(), 'Error unmounting markup', e);
       }
-      ZeresPluginLibrary.DOMTools.observer.unsubscribe(callback);
+      this.unsubscribeObserver(callback);
     };
-    ZeresPluginLibrary.DOMTools.observer.subscribe(callback, mutation => {
+    this.subscribeObserver(callback, mutation => {
       const nodes = Array.from(mutation.removedNodes);
       const directMatch = nodes.indexOf(markup) > -1;
       const parentMatch = nodes.some(parent => parent.contains(markup));
       return directMatch || parentMatch;
     });
     return markup;
-  }
-  async showToast(content, options = {}) {
-    // credits to Zere, copied from Zeres Plugin Library
-    const { type = '', icon = '', timeout = 3000, onClick = () => { }, onContext = () => { } } = options;
-    ZeresPluginLibrary.Toasts.ensureContainer();
-    const toast = ZeresPluginLibrary['DOMTools'].parseHTML(ZeresPluginLibrary.Toasts.buildToast(content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'), ZeresPluginLibrary.Toasts.parseType(type), icon));
-    toast.style.pointerEvents = 'auto';
-    document.querySelector('.toasts').appendChild(toast);
-    let sto2;
-    const wait = () => {
-      toast.classList.add('closing');
-      sto2 = setTimeout(() => {
-        toast.remove();
-        if (!document.querySelectorAll('.toasts .toast').length) document.querySelector('.toasts').remove();
-      }, 300);
-    };
-    const sto = setTimeout(wait, timeout);
-    const toastClicked = () => {
-      clearTimeout(sto);
-      clearTimeout(sto2);
-      wait();
-    };
-    toast.addEventListener('auxclick', toastClicked);
-    toast.addEventListener('click', () => {
-      toastClicked();
-      onClick();
-    });
-    toast.addEventListener('contextmenu', () => {
-      toastClicked();
-      onContext();
-    });
   }
   clamp(val, min, max) {
     // this is so sad, can we hit Metalloriff?
@@ -2036,7 +2105,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     this.saveData();
   }
   jumpToMessage(channelId, messageId, guildId) {
-    if (this.menu.open) XenoLib.ModalStack.closeModal(this.style.menu);
+    if (this.menu.open) this.ModalStack.closeModal(this.style.menu);
     this.tools.transitionTo(`/channels/${guildId || '@me'}/${channelId}${messageId ? '/' + messageId : ''}`);
   }
   isImage(url) {
@@ -2049,7 +2118,11 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     if (typeof embed.rawTitle === 'string') retEmbed.title = embed.rawTitle;
     if (typeof embed.rawDescription === 'string') retEmbed.description = embed.rawDescription;
     if (typeof embed.referenceId !== 'undefined') retEmbed.reference_id = embed.referenceId;
-    if (typeof embed.color === 'string') retEmbed.color = ZeresPluginLibrary.ColorConverter.hex2int(embed.color);
+    if (typeof embed.color === 'string') {
+      let { color } = embed;
+      if (color.length === 4) color = `#${color[1]}${color[1]}${color[2]}${color[2]}${color[3]}${color[3]}`;
+      retEmbed.color = this.lodash.parseInt(color.slice(1), 16);
+    }
     if (typeof embed.type !== 'undefined') retEmbed.type = embed.type;
     if (typeof embed.url !== 'undefined') retEmbed.url = embed.url;
     if (typeof embed.provider === 'object') retEmbed.provider = { name: embed.provider.name, url: embed.provider.url };
@@ -2150,7 +2223,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         ),
         React.createElement('strong', null, 'Notifications:'), React.createElement('br'),
         React.createElement('div', { className: this.style.textIndent },
-          'Note: They show in the top right corner and are called XenoLib notifications. Can be enabled in Settings > Display Settings, all the way at the bottom.', React.createElement('br'), React.createElement('br'),
+          'Note: They show in the top right corner and are called notifications. Can be enabled in Settings > Display Settings, all the way at the bottom.', React.createElement('br'), React.createElement('br'),
           'LEFT-CLICK:', React.createElement('br'),
           React.createElement('div', { className: this.style.textIndent },
             'Opens menu with the relevant tab', React.createElement('br')
@@ -2336,6 +2409,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     }
   }
   getLiteralName(guildId, channelId, useTags = false) {
+    useTags = false;  // remove when markdown works in notifs smh
     // TODO, custom channel server failure text
     const guild = this.tools.getServer(guildId);
     const channel = this.tools.getChannel(channelId); // todo
@@ -2404,7 +2478,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
   createModal(options, image, name) {
     if (image) {
       const openMediaViewer = Object.values(BdApi.Webpack.getBySource(/numMediaItems:\w\.items\.length,source:_,hasMediaOptions:!\w\.shouldHideMediaOptions/) || {})[0];
-      if (!openMediaViewer || typeof openMediaViewer !== 'function') return this.showToast('Failed to open image modal, missing dependency');
+      if (!openMediaViewer || typeof openMediaViewer !== 'function') return BdApi.UI.showToast('Failed to open image modal, missing dependency');
 
       /*
       {
@@ -2438,10 +2512,10 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         contextKey: this.modalContext
       })
       */
-      return this.showToast('Not implemented yet');
+      return BdApi.UI.showToast('Not implemented yet');
       return openMediaViewer(options);
     }
-    XenoLib.ModalStack.openModal(props => React.createElement(this.createModal.confirmationModal, Object.assign({}, options, props, options.onClose ? { onClose: options.onClose } : {})), { modalKey: name });
+    this.ModalStack.openModal(props => React.createElement(this.createModal.confirmationModal, Object.assign({}, options, props, options.onClose ? { onClose: options.onClose } : {})), { modalKey: name });
   }
   getMessageAny(id) {
     const record = this.messageRecord[id];
@@ -2453,7 +2527,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     if (res.status != 200) {
       if (res.status == 404 || res.status == 403) return;
       attempts++;
-      if (attempts > 3) return ZeresPluginLibrary.Logger.warn(this.getName(), `Failed to get image ${attachmentId} for caching, error code ${res.status}`);
+      if (attempts > 3) return Logger.warn(this.getName(), `Failed to get image ${attachmentId} for caching, error code ${res.status}`);
       return setTimeout(() => this.cacheImage(url, attachmentIdx, attachmentId, messageId, channelId, attempts), 1000);
     }
     const fileExtension = url.match(/(\.[0-9a-z]+)(?:$|\?)/i)[1];
@@ -2576,13 +2650,13 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
             }
           }
           if (found) continue;
-          this.nodeModules.fs.unlink(`${this.settings.imageCacheDir}/${img}`, e => e && ZeresPluginLibrary.Logger.err(this.getName(), 'Error deleting unreferenced image, what the shit', e.message));
+          this.nodeModules.fs.unlink(`${this.settings.imageCacheDir}/${img}`, e => e && Logger.error(this.getName(), 'Error deleting unreferenced image, what the shit', e.message));
         }
       }
       // 10 minutes
       for (let id in this.editHistoryAntiSpam) if (new Date().getTime() - this.editHistoryAntiSpam[id].times[0] < 10 * 60 * 1000) delete this.editHistoryAntiSpam[id];
     } catch (e) {
-      ZeresPluginLibrary.Logger.stacktrace(this.getName(), 'Error clearing out data', e);
+      Logger.stacktrace(this.getName(), 'Error clearing out data', e);
     }
   }
   /* ==================================================-|| END MESSAGE MANAGMENT ||-================================================== */
@@ -2682,9 +2756,9 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
           if (!this.tools.isMentioned(deleted, this.localUser.id)) return callDefault(...args);
           const record = this.messageRecord[dispatch.id];
           if ((!this.selectedChannel || this.selectedChannel.id != channel.id) && (guild ? this.settings.toastToggles.ghostPings : this.settings.toastTogglesDMs.ghostPings) && (!record || !record.ghost_pinged)) {
-            XenoLib.Notifications.warning(`You got ghost pinged in ${this.getLiteralName(channel.guild_id, channel.id, true)}`, { timeout: 0, onClick: () => this.openWindow('ghostpings'), onContext: () => this.jumpToMessage(dispatch.channelId, dispatch.id, guild && guild.id), channelId: channel.id });
+            BdApi.UI.showNotification({ title: this.getName(), content: `You got ghost pinged in ${this.getLiteralName(channel.guild_id, channel.id, true)}`, type: 'warning', duration: Infinity, onClick: () => this.jumpToMessage(dispatch.channelId, dispatch.id, guild && guild.id) });
             if (!this.settings.useNotificationsInstead) {
-              this.showToast(`You got ghost pinged in ${this.getLiteralName(channel.guild_id, channel.id)}`, {
+              BdApi.UI.showToast(`You got ghost pinged in ${this.getLiteralName(channel.guild_id, channel.id)}`, {
                 type: 'warning',
                 onClick: () => this.openWindow('ghostpings'),
                 onContext: () => this.jumpToMessage(dispatch.channelId, dispatch.id, guild && guild.id),
@@ -2694,7 +2768,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
           }
           this.saveDeletedMessage(deleted, this.deletedMessageRecord);
           this.saveData();
-          if (XenoLib.DiscordAPI.channelId.id === dispatch.channelId) this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE', id: dispatch.id });
+          if (this.getSelectedTextChannel()?.id === dispatch.channelId) this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE', id: dispatch.id });
         } else if (dispatch.type === 'MESSAGE_UPDATE') {
           if (!dispatch.message.edited_timestamp) {
             if (dispatch.message.embeds) {
@@ -2759,9 +2833,9 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
           }
 
           if ((!this.selectedChannel || this.selectedChannel.id != channel.id) && (guild ? this.settings.toastToggles.ghostPings : this.settings.toastTogglesDMs.ghostPings)) {
-            XenoLib.Notifications.warning(`You got ghost pinged in ${this.getLiteralName(channel.guild_id, channel.id, true)}`, { timeout: 0, onClick: () => this.openWindow('ghostpings'), onContext: () => this.jumpToMessage(dispatch.channelId, dispatch.id, guild && guild.id), channelId: channel.id });
+            BdApi.UI.showNotification({ title: this.getName(), content: `You got ghost pinged in ${this.getLiteralName(channel.guild_id, channel.id, true)}`, type: 'warning', duration: Infinity, onClick: () => this.jumpToMessage(dispatch.channelId, dispatch.id, guild && guild.id) });
             if (!this.settings.useNotificationsInstead) {
-              this.showToast(`You got ghost pinged in ${this.getLiteralName(channel.guild_id, channel.id)}`, {
+              BdApi.UI.showToast(`You got ghost pinged in ${this.getLiteralName(channel.guild_id, channel.id)}`, {
                 type: 'warning',
                 onClick: () => this.openWindow('ghostpings'),
                 onContext: () => this.jumpToMessage(dispatch.channelId, dispatch.id, guild && guild.id),
@@ -2830,13 +2904,9 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         if (!notificationsBlacklisted) {
           if (guild ? this.settings.toastToggles.deleted && ((isLocalUser && !this.settings.toastToggles.disableToastsForLocal) || !isLocalUser) : this.settings.toastTogglesDMs.deleted && !isLocalUser) {
             if (this.settings.useNotificationsInstead) {
-              XenoLib.Notifications.danger(`Message deleted from ${this.getLiteralName(channel.guild_id, channel.id, true)}`, {
-                onClick: () => this.openWindow('deleted'),
-                onContext: () => this.jumpToMessage(dispatch.channelId, dispatch.id, guild && guild.id),
-                timeout: 4500
-              });
+              BdApi.UI.showNotification({ title: this.getName(), content: `Message deleted from ${this.getLiteralName(channel.guild_id, channel.id, true)}`, type: 'error', onClick: () => this.jumpToMessage(dispatch.channelId, dispatch.id, guild && guild.id) });
             } else {
-              this.showToast(`Message deleted from ${this.getLiteralName(channel.guild_id, channel.id)}`, {
+              BdApi.UI.showToast(`Message deleted from ${this.getLiteralName(channel.guild_id, channel.id)}`, {
                 type: 'error',
                 onClick: () => this.openWindow('deleted'),
                 onContext: () => this.jumpToMessage(dispatch.channelId, dispatch.id, guild && guild.id),
@@ -2849,9 +2919,9 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         const record = this.messageRecord[dispatch.id];
 
         if ((!this.selectedChannel || this.selectedChannel.id != channel.id) && (guild ? this.settings.toastToggles.ghostPings : this.settings.toastTogglesDMs.ghostPings) && (!record || !record.ghost_pinged) && this.tools.isMentioned(deleted, this.localUser.id)) {
-          XenoLib.Notifications.warning(`You got ghost pinged in ${this.getLiteralName(channel.guild_id, channel.id, true)}`, { timeout: 0, onClick: () => this.openWindow('ghostpings'), onContext: () => this.jumpToMessage(dispatch.channelId, dispatch.id, guild && guild.id), channelId: dispatch.channelId });
+          BdApi.UI.showNotification({ title: this.getName(), content: `You got ghost pinged in ${this.getLiteralName(channel.guild_id, channel.id, true)}`, type: 'warning', duration: Infinity, onClick: () => this.jumpToMessage(dispatch.channelId, dispatch.id, guild && guild.id) });
           if (!this.settings.useNotificationsInstead) {
-            this.showToast(`You got ghost pinged in ${this.getLiteralName(channel.guild_id, channel.id)}`, {
+            BdApi.UI.showToast(`You got ghost pinged in ${this.getLiteralName(channel.guild_id, channel.id)}`, {
               type: 'warning',
               onClick: () => this.openWindow('ghostpings'),
               onContext: () => this.jumpToMessage(dispatch.channelId, dispatch.id, guild && guild.id),
@@ -2863,7 +2933,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         this.saveDeletedMessage(deleted, this.deletedMessageRecord);
         // if (this.settings.cacheAllImages) this.cacheImages(deleted);
         if (!this.settings.showDeletedMessages) ret = callDefault(...args);
-        else if (XenoLib.DiscordAPI.channelId === dispatch.channelId) this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE', id: dispatch.id });
+        else if (this.getSelectedTextChannel()?.id === dispatch.channelId) this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE', id: dispatch.id });
         this.saveData();
       } else if (dispatch.type == 'MESSAGE_DELETE_BULK') {
         if (this.settings.showDeletedCount) {
@@ -2880,7 +2950,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
             continue;
           }
           this.saveDeletedMessage(purged, this.purgedMessageRecord);
-          if (XenoLib.DiscordAPI.channelId === dispatch.channelId) this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE', id: purged.id });
+          if (this.getSelectedTextChannel()?.id === dispatch.channelId) this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE', id: purged.id });
         }
 
         if (failedMessage && this.aggresiveMessageCaching)
@@ -2893,13 +2963,9 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         if (!notificationsBlacklisted) {
           if (guild ? this.settings.toastToggles.deleted : this.settings.toastTogglesDMs.deleted) {
             if (this.settings.useNotificationsInstead) {
-              XenoLib.Notifications.danger(`${dispatch.ids.length} messages bulk deleted from ${this.getLiteralName(channel.guild_id, channel.id, true)}`, {
-                onClick: () => this.openWindow('purged'),
-                onContext: () => this.jumpToMessage(channel.id, undefined, guild && guild.id),
-                timeout: 4500
-              });
+              BdApi.UI.showNotification({ title: this.getName(), content: `${dispatch.ids.length} messages bulk deleted from ${this.getLiteralName(channel.guild_id, channel.id, true)}`, type: 'error', onClick: () => this.jumpToMessage(channel.id, undefined, guild && guild.id) });
             } else {
-              this.showToast(`${dispatch.ids.length} messages bulk deleted from ${this.getLiteralName(channel.guild_id, channel.id)}`, {
+              BdApi.UI.showToast(`${dispatch.ids.length} messages bulk deleted from ${this.getLiteralName(channel.guild_id, channel.id)}`, {
                 type: 'error',
                 onClick: () => this.openWindow('purged'),
                 onContext: () => this.jumpToMessage(channel.id, undefined, guild && guild.id),
@@ -2984,12 +3050,9 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
               if (this.editHistoryAntiSpam[author.id].times.length === 10 && new Date().getTime() - this.editHistoryAntiSpam[author.id].times[0] < 60 * 1000) {
                 if (!this.editHistoryAntiSpam[author.id].blocked) {
                   if (this.settings.useNotificationsInstead) {
-                    XenoLib.Notifications.warning(`Edit notifications from <@${author.id}> have been temporarily blocked for 1 minute.`, {
-                      timeout: 7500,
-                      channelId: channel.id
-                    });
+                    BdApi.UI.showNotification({ title: this.getName(), content: `Edit notifications from <@${author.id}> have been temporarily blocked for 1 minute.`, type: 'warning', duration: 7500 });
                   } else {
-                    this.showToast(`Edit notifications from ${author.username} have been temporarily blocked for 1 minute.`, {
+                    BdApi.UI.showToast(`Edit notifications from ${author.username} have been temporarily blocked for 1 minute.`, {
                       type: 'warning',
                       timeout: 7500
                     });
@@ -3003,13 +3066,9 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
             }
             if (this.settings.blockSpamEdit || !this.editHistoryAntiSpam[author.id].blocked) {
               if (this.settings.useNotificationsInstead) {
-                XenoLib.Notifications.info(`Message edited in ${this.getLiteralName(channel.guild_id, channel.id, true)}`, {
-                  onClick: () => this.openWindow('edited'),
-                  onContext: () => this.jumpToMessage(channel.id, dispatch.message.id, guild && guild.id),
-                  timeout: 4500
-                });
+                BdApi.UI.showNotification({ title: this.getName(), content: `Message edited in ${this.getLiteralName(channel.guild_id, channel.id, true)}`, onClick: () => this.jumpToMessage(channel.id, dispatch.message.id, guild && guild.id) });
               } else {
-                this.showToast(`Message edited in ${this.getLiteralName(channel.guild_id, channel.id)}`, {
+                BdApi.UI.showToast(`Message edited in ${this.getLiteralName(channel.guild_id, channel.id)}`, {
                   type: 'info',
                   onClick: () => this.openWindow('edited'),
                   onContext: () => this.jumpToMessage(channel.id, dispatch.message.id, guild && guild.id),
@@ -3020,9 +3079,9 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
           }
         }
         if ((!this.selectedChannel || this.selectedChannel.id != channel.id) && (guild ? this.settings.toastToggles.ghostPings : this.settings.toastTogglesDMs.ghostPings) && ghostPinged) {
-          XenoLib.Notifications.warning(`You got ghost pinged in ${this.getLiteralName(channel.guild_id, channel.id, true)}`, { timeout: 0, onClick: () => this.openWindow('ghostpings'), onContext: () => this.jumpToMessage(dispatch.channelId, dispatch.id, guild && guild.id), channelId: dispatch.channelId });
+          BdApi.UI.showNotification({ title: this.getName(), content: `You got ghost pinged in ${this.getLiteralName(channel.guild_id, channel.id, true)}`, type: 'warning', onClick: () => this.jumpToMessage(dispatch.channelId, dispatch.id, guild && guild.id) });
           if (!this.settings.useNotificationsInstead) {
-            this.showToast(`You got ghost pinged in ${this.getLiteralName(channel.guild_id, channel.id)}`, {
+            BdApi.UI.showToast(`You got ghost pinged in ${this.getLiteralName(channel.guild_id, channel.id)}`, {
               type: 'warning',
               onClick: () => this.openWindow('ghostpings'),
               onContext: () => this.jumpToMessage(dispatch.channelId, dispatch.id, guild && guild.id),
@@ -3045,16 +3104,16 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         if (!notificationsBlacklisted) {
           if ((guild ? this.settings.toastToggles.sent : this.settings.toastTogglesDMs.sent) && (!this.selectedChannel || this.selectedChannel.id != channel.id)) {
             if (this.settings.useNotificationsInstead) {
-              XenoLib.Notifications.info(`Message sent in ${this.getLiteralName(channel.guild_id, channel.id, true)}`, { onClick: () => this.openWindow('sent'), onContext: () => this.jumpToMessage(channel.id, dispatch.message.id, guild && guild.id), timeout: 4500 });
+              BdApi.UI.showNotification({ title: this.getName(), content: `Message sent in ${this.getLiteralName(channel.guild_id, channel.id, true)}`, onClick: () => this.jumpToMessage(dispatch.channelId, dispatch.id, guild && guild.id) });
             } else {
-              this.showToast(`Message sent in ${this.getLiteralName(channel.guild_id, channel.id)}`, { type: 'info', onClick: () => this.openWindow('sent'), onContext: () => this.jumpToMessage(channel.id, dispatch.message.id, guild && guild.id), timeout: 4500 });
+              BdApi.UI.showToast(`Message sent in ${this.getLiteralName(channel.guild_id, channel.id)}`, { type: 'info', onClick: () => this.openWindow('sent'), onContext: () => this.jumpToMessage(channel.id, dispatch.message.id, guild && guild.id), timeout: 4500 });
             }
           }
         }
         return callDefault(...args);
       } else return callDefault(...args);
     } catch (err) {
-      ZeresPluginLibrary.Logger.stacktrace(this.getName(), 'Error in onDispatchEvent', err);
+      Logger.stacktrace(this.getName(), 'Error in onDispatchEvent', err);
     }
     return ret;
   }
@@ -3082,37 +3141,24 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
             this.menu.queueInterval = 0;
             this.processUserRequestQueue.queueIntervalTime += 50;
             setTimeout(messageDataManager, reason.body.retry_after);
-            ZeresPluginLibrary.Logger.warn(this.getName(), 'Rate limited, retrying in', reason.body.retry_after, 'ms');
+            Logger.warn(this.getName(), 'Rate limited, retrying in', reason.body.retry_after, 'ms');
             this.menu.userRequestQueue.push(data);
             return;
           }
-          ZeresPluginLibrary.Logger.warn(this.getName(), `Failed to get info for ${data.username}, reason:`, reason);
+          Logger.warn(this.getName(), `Failed to get info for ${data.username}, reason:`, reason);
           for (let ff of data.fail) ff();
         });
     };
     this.menu.queueInterval = setInterval(messageDataManager, this.processUserRequestQueue.queueIntervalTime);
   }
   getReactInstance(node) {
-    const domNode = ZeresPluginLibrary.DOMTools.resolveElement(node);
+    const domNode = node;
     if (!(domNode instanceof Element)) return undefined;
     return domNode[Object.keys(domNode).find((key) => key.startsWith("__reactInternalInstance") || key.startsWith("__reactFiber") || key.startsWith("__reactContainer"))];
   }
   async patchMessages() {
-    const Tooltip = (() => {
-      let ret = null;
-      ZeresPluginLibrary.WebpackModules.getModule(e => {
-        for (const val of Object.values(e)) {
-          if (typeof val !== 'function') continue;
-          if (val.Colors && val.prototype?.shouldShowTooltip) {
-            ret = val;
-            return true;
-          }
-        }
-        return false;
-      })
-      return ret;
-    })();
-    const dateFormat = ZeresPluginLibrary.WebpackModules.getModule(e => typeof e === 'function' && e?.toString()?.includes('sameDay'), { searchExports: true });
+    const Tooltip = BdApi.Webpack.getBySource('VoidTooltip cannot find DOM node', { declarationFilter: e => e.Colors && e.prototype?.shouldShowTooltip }) || (e => e.children);
+    const dateFormat = BdApi.Webpack.getModule(e => typeof e === 'function' && e?.toString()?.includes('sameDay'), { searchExports: true });
     //const i18n = ZeresPluginLibrary.WebpackModules.find(e => e.Messages && e.Messages.HOME);
     /* suck it you retarded asshole devilfuck */
     const SuffixEdited = React.memo(e => {
@@ -3127,87 +3173,50 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
           'time',
           Object.assign({
             dateTime: e.timestamp ? e.timestamp.toISOString() : null,
-            className: XenoLib.joinClassNames(this.multiClasses.edited, { [this.style.editedTagClicky]: !!text }),
+            className: className(this.multiClasses.edited, { [this.style.editedTagClicky]: !!text }),
             role: 'note'
           }, tt, {
             onClick: () => {
               try {
                 tt.onClick();
               } catch (err) {
-                ZeresPluginLibrary.Logger.stacktrace(this.getName(), 'Failed to execute tooltip onClick', err);
+                Logger.stacktrace(this.getName(), 'Failed to execute tooltip onClick', err);
               }
               try {
                 if (!text) return;
                 e.__MLV2_showAllMessages();
               } catch (err) {
-                ZeresPluginLibrary.Logger.stacktrace(this.getName(), 'Failed to show all edited messages', err);
+                Logger.stacktrace(this.getName(), 'Failed to show all edited messages', err);
               }
             }
           }), `(${/* i18n.Messages.MESSAGE_EDITED uhhhhhhhhh what now? */'edited'})${e.__MLV2_hasMore === 'before' ? ` <(${e.__MLV2_numHidden})` : e.__MLV2_hasMore === 'after' ? ` (${e.__MLV2_numHidden})>` : ''}`))
     });
     SuffixEdited.displayName = 'SuffixEdited';
-    const parseContent = (() => {
-      const parse = (() => {
-        let ret = null;
-        ZeresPluginLibrary.WebpackModules.getModule(e => {
-          for (const val of Object.values(e)) {
-            if (typeof val !== 'function') return false;
-            const cont = val.toString();
-            if (!cont.includes('customRenderedContent') || !cont.includes('hideSimpleEmbedContent')) return false;
-            ret = val;
-            return true;
-          }
-          return false;
-        });
-        return ret;
-      })()
-      if (parse) {
-        return function parseContent() {
-          const ReactDispatcher = Object.values(React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE).find(e => e.useState);
-          const oUseMemo = ReactDispatcher.useMemo;
-          ReactDispatcher.useMemo = memo => memo();
-          try {
-            return parse(...arguments);
-          } finally {
-            ReactDispatcher.useMemo = oUseMemo;
-          }
-          return {};
-        }
-      }
-      return null;
-    })();
-    const MemoMessage = await (async () => {
-      var _className = XenoLib.getSingleClass('message messageListItem');
-      var _fallbackSelector = 'li[class*="messageListItem__"]';
-      var _tries = 0;
-      var el = null;
-      var selector = '';
-      var _notifId = 0;
-      while (!_className && _tries < 10 && !document.querySelector(_fallbackSelector)) {
-        await new Promise(res => setTimeout(res, 2000));
-        _className = XenoLib.getSingleClass('message messageListItem')
-      }
-      if (_className) {
-        selector = `.${_className}`;
-      } else if (el = document.querySelector(_fallbackSelector)) {
-        ZeresPluginLibrary.Logger.warn(_this.getName(), 'Could not get messageListItem className for finding MemoMessage, fell back to the fallback selector');
-      } else {
-        ZeresPluginLibrary.Logger.error(_this.getName(), 'Could not get messageListItem className for finding MemoMessage, falling back to DOM observing');
-        _notifId = XenoLib.Notifications.warning('[MessageLoggerV2] Could not find messageListItem, try switching to a DM or a channel. If this doesn\'t disappear, edits and deleted tint won\'t show', { timeout: 0 });
-        selector = _fallbackSelector;
-      }
-      el = el || document.querySelector(selector) || (await new Promise(res => {
-        var sub = ZeresPluginLibrary.DOMTools.observer.subscribeToQuerySelector(() => {
-          ZeresPluginLibrary.DOMTools.observer.unsubscribe(sub);
-          res(document.querySelector(selector));
-        }, selector, null, true)
-      }));
-      if (_notifId) XenoLib.Notifications.remove(_notifId);
-      return ZeresPluginLibrary.Utilities.findInTree(this.getReactInstance(el), e => ((typeof e?.memoizedProps?.renderContentOnly) === 'boolean'), { walkable: ['return'] })?.elementType
-    })();
-    const MessageContent = ZeresPluginLibrary.WebpackModules.getModule(e => !!e?.type?.toString()?.match(/,\w=\w\.state===\w\.(?:\w[^.]+)\.SEND_FAILED,\w=\w\.state===\w\.(?:\w[^.]+)\.SENDING/));
+    const MemoMessage = BdApi.Webpack.getBySource("Message must not be a thread starter message", { declarationFilter: x => String(x?.type).includes("Message must not be a thread starter message") });
+    const MessageContent = BdApi.Webpack.getModule(e => !!e?.type?.toString()?.match(/,\w=\w\.state===\w\.(?:\w[^.]+)\.SEND_FAILED,\w=\w\.state===\w\.(?:\w[^.]+)\.SENDING/));
 
-    if (!MessageContent || !MemoMessage) return XenoLib.Notifications.error('[MessageLoggerV2] Failed to patch message components, edit history and deleted tint will not show!', { timeout: 0 });
+    if (!MessageContent || !MemoMessage) return BdApi.UI.showNotification({ title: this.getName(), content: '[MessageLoggerV2] Failed to patch message components, edit history and deleted tint will not show!', type: 'error', duration: Infinity });
+
+    const parseContent = (() => {
+      const parse = BdApi.Webpack.getByStrings('customRenderedContent', 'hideSimpleEmbedContent');
+      if (!parse) {
+        Logger.warn(this.getName(), 'Could not set up parseContent, edits will not have markdown');
+        BdApi.UI.showNotification({ title: this.getName(), content: 'Internal error: parseContent not found, edits will not have markdown!', type: 'warning' });
+        return e => e?.content;
+      }
+      return function parseContent() {
+        const ReactDispatcher = Object.values(React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE).find(e => e.useState);
+        const oUseMemo = ReactDispatcher.useMemo;
+        ReactDispatcher.useMemo = memo => memo();
+        try {
+          return parse(...arguments);
+        } finally {
+          ReactDispatcher.useMemo = oUseMemo;
+        }
+        return {};
+      }
+    })();
+
     const useStateConstant = {};
     this.unpatches.push(
       this.Patcher.after(MessageContent, 'type', (_, [props], ret) => {
@@ -3253,8 +3262,8 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
           );
 
           return React.createElement(
-            XenoLib.ReactComponents.ErrorBoundary,
-            { label: 'Edit history' },
+            BdApi.Components.ErrorBoundary,
+            { name: 'Edit history' },
             editNum === -1 ? result : React.createElement(
               Tooltip,
               {
@@ -3268,7 +3277,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
                   'div', // required div for the tooltip to properly position itself
                   {
                     ..._,
-                    className: XenoLib.joinClassNames({ [this.style.editedCompact]: props.compact && !isSingular, [this.style.edited]: !isSingular }),
+                    className: className({ [this.style.editedCompact]: props.compact && !isSingular, [this.style.edited]: !isSingular }),
                     editNum
                   },
                   result
@@ -3276,7 +3285,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
             )
           );
         };
-        ret.props.className = XenoLib.joinClassNames(ret.props.className, this.style.edited);
+        ret.props.className = className(ret.props.className, this.style.edited);
         const modifier = this.editModifiers[props.message.id];
         if (modifier?.editNum) {
           ret.props.children = [createEditedMessage(record.edit_history[modifier.editNum], -1, { isSingular: true, noSuffix: modifier.noSuffix })];
@@ -3332,7 +3341,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
       })
     );
 
-    const messageClass = XenoLib.getSingleClass('ephemeral message');
+    const messageClass = this.getSingleClass('ephemeral message');
     const _self = this;
     function Message(props, ...whatever) {
       try {
@@ -3341,16 +3350,15 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         const oRef = ret.props.children.ref;
         ret.props.children.ref = e => {
           if (e && !e.__tooltip) {
-            // later
-            new ZeresPluginLibrary.Tooltip(e, 'Deleted: ' + _self.tools.createMomentObject(props.__MLV2_deleteTime).format('LLLL'), { side: 'left' });
+            BdApi.UI.createTooltip(e, 'Deleted: ' + _self.tools.createMomentObject(props.__MLV2_deleteTime).format('LLLL'), { side: 'left' });
             e.__tooltip = true;
           }
           if (typeof oRef === 'function') return oRef(e);
-          else if (XenoLib._.isObject(oRef)) oRef.current = e;
+          else if (this.lodash.isObject(oRef)) oRef.current = e;
         };
         return ret;
       } catch (err) {
-        ZeresPluginLibrary.Logger.stacktrace(_self.getName(), 'Error in Message replacement component', err);
+        Logger.stacktrace(_self.getName(), 'Error in Message replacement component', err);
       }
       return null;
     }
@@ -3374,7 +3382,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         if (props.message.editedTimestamp) record.message.edited_timestamp = new Date(props.message.editedTimestamp).getTime();
         if (!record.delete_data) return;
         if (this.noTintIds.indexOf(props.message.id) !== -1) return;
-        const message = ZeresPluginLibrary.Utilities.findInReactTree(ret, e => e && typeof e?.props?.className === 'string' && ~e?.props?.className?.split(' ').indexOf(messageClass));
+        const message = this.findInReactTree(ret, e => e && typeof e?.props?.className === 'string' && ~e?.props?.className?.split(' ').indexOf(messageClass));
         if (!message) return;
         message.props.className += ' ' + (this.settings.useAlternativeDeletedStyle ? this.style.deletedAlt : this.style.deleted);
         message.props.__MLV2_deleteTime = record.delete_data.time;
@@ -3385,7 +3393,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     this.forceReloadMessages();
   }
   forceReloadMessages() {
-    const instance = ZeresPluginLibrary.Utilities.findInTree(this.getReactInstance(document.querySelector('.chatContent-3KubbW')), e => ((typeof e?.memoizedProps?.showQuarantinedUserBanner) === 'boolean'), { walkable: ['return'] })?.stateNode;
+    const instance = BdApi.Utils.findInTree(this.getReactInstance(document.querySelector('.chatContent-3KubbW')), e => ((typeof e?.memoizedProps?.showQuarantinedUserBanner) === 'boolean'), { walkable: ['return'] })?.stateNode;
     if (!instance) return;
     const unpatch = this.Patcher.after(instance, 'render', (_this, _, ret) => {
       unpatch();
@@ -3399,6 +3407,28 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     this.dispatcher.dispatch({ type: 'CONTEXT_MENU_CLOSE' });
   }
   patchModal() {
+    let Button = null;
+    try {
+      const ButtonOptionsRaw = Webpack.getModule(e => {
+        if (typeof e === 'function') return false;
+        const possFuncs = Object.values(e);
+        if (possFuncs.length < 3 || possFuncs.length > 8) return false;
+        if (!possFuncs.some(e => typeof e === 'object' && e?.BRAND_INVERTED && typeof e.BRAND_INVERTED !== 'function')) return false;
+        return true;
+      })
+      for (let item of Object.values(ButtonOptionsRaw)) {
+        if (typeof item !== 'function') continue;
+        const funcString = item.toString();
+        if (!funcString.includes(',buttonRef:')) continue;
+        Button = item;
+        break;
+      }
+    } catch (e) {
+      Logger.stacktrace(this.getName(), 'Error getting Button component', e);
+    }
+
+    if (!Button) Logger.warn(this.getName(), 'Could not find Button component');
+
     try {
       const confirmationModalRegex = /header:\w,children:\w,confirmText:\w,cancelText:\w,className:\w,onConfirm:\w,onCancel:\w,onClose:\w,onCloseCallback:\w/;
       const confirmModal = Object.values(BdApi.Webpack.getBySource(confirmationModalRegex) || {}).find(e => typeof e === 'function' && e.toString().match(confirmationModalRegex)) || (() => null);
@@ -3409,7 +3439,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
           if (props.size) ret.props.size = props.size;
 
           if (props.onCancel) {
-            const cancelButton = ZeresPluginLibrary.Utilities.findInReactTree(ret, e => e && e.type === XenoLib.ReactComponents.Button && e.props && e.props.look);
+            const cancelButton = this.findInReactTree(ret, e => e && e.type === Button && e.props && e.props.look);
             if (cancelButton) cancelButton.props.onClick = props.onCancel;
           }
           return ret;
@@ -3420,9 +3450,9 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         }
       };
     } catch { }
-    if (XenoLib.ModalStack.modalStore?.subscribe) {
-      this._modalsApiUnsubcribe = XenoLib.ModalStack.modalStore.subscribe(_ => {
-        if (this.menu.open && !XenoLib.ModalStack.hasModalOpen(this.style.menu)) {
+    if (this.ModalStack.modalStore?.subscribe) {
+      this._modalsApiUnsubcribe = this.ModalStack.modalStore.subscribe(_ => {
+        if (this.menu.open && !this.ModalStack.hasModalOpen(this.style.menu)) {
           this.menu.filter = '';
           this.menu.open = false;
           this.menu.shownMessages = -1;
@@ -3469,7 +3499,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
 */
   }
   buildMenu(setup) {
-    const ret = ZeresPluginLibrary.DCM.buildMenu(setup);
+    const ret = BdApi.ContextMenu.buildMenu(setup);
     return props => ret({ ...props, onClose: _ => { } });
   }
   // >>-|| POPULATION ||-<<
@@ -3507,6 +3537,24 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     if (deleted || edited) details += ` (sent ${this.createTimeStamp(message.timestamp)})`;
 
     details = details.replace(/[<>"&]/g, c => ({ "<": "&lt;", ">": "&gt;", "\"": "&quot;", "&": "&amp;" })[c]);
+    if (!this.createMessageGroup.classes) {
+      this.createMessageGroup.classes = {
+        containerBounded: this.safeGetClass(() => Webpack.getByKeys('containerCozyBounded').containerCozyBounded, 'containerCozyBounded'),
+        message: this.safeGetClass(() => `.${Webpack.getByKeys('containerCozyBounded').containerCozyBounded.split(/ /g)[0]} > div`, '.containerCozyBounded-MLV2 > div', true),
+        header: this.safeGetClass(() => Webpack.getByKeys('containerCozyBounded').headerCozy, 'headerCozy'),
+        avatar: this.safeGetClass(() => this.getClass('header avatar', true), 'avatar'),
+        headerMeta: this.safeGetClass(() => Webpack.getByKeys('containerCozyBounded').headerCozyMeta, 'headerCozyMeta'),
+        username: this.safeGetClass(() => Webpack.getByKeys('containerCozyBounded').username, 'username'),
+        timestamp: this.safeGetClass(() => Webpack.getByKeys('containerCozyBounded').timestampCozy, 'timestampCozy'),
+        timestampSingle: this.safeGetClass(() => Webpack.getByKeys('containerCozyBounded').timestampCozy.split(/ /g)[0], 'timestampCozy'),
+        content: this.safeGetClass(() => Webpack.getByKeys('containerCozyBounded').contentCozy, 'contentCozy'),
+        avatarSingle: this.safeGetClass(() => Webpack.getByKeys('containerCozyBounded').avatar.split(/ /g)[0], 'avatar'),
+        avatarImg: this.getClass('edited avatar'),
+        avatarImgSingle: this.getSingleClass('edited avatar'),
+        botTag: Webpack.getByKeys('botTagRegular')?.botTagRegular + ' ' + /* Webpack.getByKeys('botTagCozy').botTagCozy */'botTagCozy_c19a55',
+        markupSingle: this.safeGetClass(() => Webpack.getByKeys('markup').markup.split(/ /g)[0], 'markup__75297')
+      };
+    }
     const classes = this.createMessageGroup.classes;
     const getAvatarOf = user => {
       if (!user.avatar) return '/assets/322c936a8c8be1b803cd94861bdfa868.png';
@@ -3514,19 +3562,19 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
     };
     if (!classes.extra)
       classes.extra = [
-        /* 0 */ XenoLib.joinClassNames(XenoLib.getClass('groupStart message'), XenoLib.getClass('groupStart cozyMessage'), XenoLib.getClass('systemMessage groupStart'), XenoLib.getClass('zalgo wrapper'), XenoLib.getClass('zalgo cozy'), XenoLib.getClass('cozy zalgo')),
-        /* 1 */ XenoLib.joinClassNames(XenoLib.getClass('groupStart message'), XenoLib.getClass('groupStart cozyMessage'), XenoLib.getClass('zalgo wrapper'), XenoLib.getClass('zalgo cozy'), XenoLib.getClass('cozy zalgo')),
-        /* 2 */ XenoLib.getClass('isSending header'),
-        /* 3 */ XenoLib.joinClassNames(XenoLib.getClass('edited avatar'), XenoLib.getClass('edited avatar clickable')),
-        /* 4 */ XenoLib.joinClassNames(XenoLib.getClass('timestampTooltip username'), XenoLib.getClass('edited avatar clickable')),
-        /* 5 */ XenoLib.joinClassNames(XenoLib.getClass('separator timestamp'), XenoLib.getClass('separator timestampInline')),
-        /* 6 */ XenoLib.joinClassNames(this.multiClasses.markup, XenoLib.getClass('buttonContainer markupRtl')),
-        /* 7 */ XenoLib.getClass('avatarDecoration messageContent'),
-        /* 8 */ XenoLib.joinClassNames(XenoLib.getClass('zalgo latin24CompactTimeStamp'), XenoLib.getClass('separator timestamp'), XenoLib.getClass('alt timestampVisibleOnHover'), XenoLib.getClass('timestampVisibleOnHover alt')),
-        /* 9 */ XenoLib.getClass('latin24CompactTimeStamp separator'),
-        /* 10 */ XenoLib.getSingleClass('timestampTooltip username'),
-        /* 11 */ XenoLib.getSingleClass('separator timestamp'),
-        /* 12 */ XenoLib.getClass('zalgo contents')
+        /* 0 */ className(this.getClass('groupStart message'), this.getClass('groupStart cozyMessage'), this.getClass('systemMessage groupStart'), this.getClass('zalgo wrapper'), this.getClass('zalgo cozy'), this.getClass('cozy zalgo')),
+        /* 1 */ className(this.getClass('groupStart message'), this.getClass('groupStart cozyMessage'), this.getClass('zalgo wrapper'), this.getClass('zalgo cozy'), this.getClass('cozy zalgo')),
+        /* 2 */ this.getClass('isSending header'),
+        /* 3 */ className(this.getClass('edited avatar'), this.getClass('edited avatar clickable')),
+        /* 4 */ className(this.getClass('timestampTooltip username'), this.getClass('edited avatar clickable')),
+        /* 5 */ className(this.getClass('separator timestamp'), this.getClass('separator timestampInline')),
+        /* 6 */ className(this.multiClasses.markup, this.getClass('buttonContainer markupRtl')),
+        /* 7 */ this.getClass('avatarDecoration messageContent'),
+        /* 8 */ className(this.getClass('zalgo latin24CompactTimeStamp'), this.getClass('separator timestamp'), this.getClass('alt timestampVisibleOnHover'), this.getClass('timestampVisibleOnHover alt')),
+        /* 9 */ this.getClass('latin24CompactTimeStamp separator'),
+        /* 10 */ this.getSingleClass('timestampTooltip username'),
+        /* 11 */ this.getSingleClass('separator timestamp'),
+        /* 12 */ this.getClass('zalgo contents')
       ];
 
     const element = isStart
@@ -3604,37 +3652,37 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
           verifyProfilePicture();
         }
       }
-      const profIcon = element.getElementsByClassName(classes.avatarImgSingle)[0];
+      const profIcon = element.getElementsByClassName(classes.avatarImgSingle)[0];/*
       profIcon.addEventListener('click', () => {
-        //if (isBot) return this.showToast('User is a bot, this action is not possible on a bot.', { type: 'error', timeout: 5000 });
-        if (userInfoBeingRequested) return this.showToast('Internal error', { type: 'info', timeout: 5000 });
-        if (noUserInfo) return this.showToast('Could not get user info!', { type: 'error' });
+        //if (isBot) return BdApi.UI.showToast('User is a bot, this action is not possible on a bot.', { type: 'error', timeout: 5000 });
+        if (userInfoBeingRequested) return BdApi.UI.showToast('Internal error', { type: 'info', timeout: 5000 });
+        if (noUserInfo) return BdApi.UI.showToast('Could not get user info!', { type: 'error' });
         ZeresPluginLibrary.Popouts.showUserPopout(profIcon, author);
       });
       profIcon.addEventListener('contextmenu', e => {
-        //if (isBot) return this.showToast('User is a bot, this action is not possible on a bot.', { type: 'error', timeout: 5000 });
-        if (userInfoBeingRequested) return this.showToast('Internal error', { type: 'info', timeout: 5000 });
-        if (noUserInfo) return this.showToast('Could not get user info! You can only delete or copy to clipboard!', { timeout: 5000 });
-        ZeresPluginLibrary.WebpackModules.getByProps('openUserContextMenu').openUserContextMenu(e, author, channel || this.menu.randomValidChannel);
+        //if (isBot) return BdApi.UI.showToast('User is a bot, this action is not possible on a bot.', { type: 'error', timeout: 5000 });
+        if (userInfoBeingRequested) return BdApi.UI.showToast('Internal error', { type: 'info', timeout: 5000 });
+        if (noUserInfo) return BdApi.UI.showToast('Could not get user info! You can only delete or copy to clipboard!', { timeout: 5000 });
+        Webpack.getByKeys('openUserContextMenu').openUserContextMenu(e, author, channel || this.menu.randomValidChannel);
       });
       const nameLink = element.getElementsByClassName(classes.extra[10])[0];
       nameLink.addEventListener('click', () => {
-        //if (isBot) return this.showToast('User is a bot, this action is not possible on a bot.', { type: 'error', timeout: 5000 });
-        if (userInfoBeingRequested) return this.showToast('Internal error', { type: 'info', timeout: 5000 });
-        if (noUserInfo) return this.showToast('Could not get user info!', { type: 'error' });
+        //if (isBot) return BdApi.UI.showToast('User is a bot, this action is not possible on a bot.', { type: 'error', timeout: 5000 });
+        if (userInfoBeingRequested) return BdApi.UI.showToast('Internal error', { type: 'info', timeout: 5000 });
+        if (noUserInfo) return BdApi.UI.showToast('Could not get user info!', { type: 'error' });
         ZeresPluginLibrary.Popouts.showUserPopout(nameLink, author);
       });
       nameLink.addEventListener('contextmenu', e => {
-        //if (isBot) return this.showToast('User is a bot, this action is not possible on a bot.', { type: 'error', timeout: 5000 });
-        if (userInfoBeingRequested) return this.showToast('Internal error', { type: 'info', timeout: 5000 });
-        if (noUserInfo) return this.showToast('Could not get user info! You can only delete or copy to clipboard!', { type: 'error', timeout: 5000 });
-        ZeresPluginLibrary.WebpackModules.getByProps('openUserContextMenu').openUserContextMenu(e, author, channel || this.menu.randomValidChannel);
-      });
+        //if (isBot) return BdApi.UI.showToast('User is a bot, this action is not possible on a bot.', { type: 'error', timeout: 5000 });
+        if (userInfoBeingRequested) return BdApi.UI.showToast('Internal error', { type: 'info', timeout: 5000 });
+        if (noUserInfo) return BdApi.UI.showToast('Could not get user info! You can only delete or copy to clipboard!', { type: 'error', timeout: 5000 });
+        Webpack.getByKeys('openUserContextMenu').openUserContextMenu(e, author, channel || this.menu.randomValidChannel);
+      }); */
       const timestampEl = element.getElementsByClassName(classes.extra[11])[0];
       timestampEl.addEventListener('contextmenu', e => {
         const messages = [element];
         let target = element.nextElementSibling;
-        while (target && target.classList && !target.classList.contains(XenoLib.getSingleClass('systemMessage groupStart'))) {
+        while (target && target.classList && !target.classList.contains(this.getSingleClass('systemMessage groupStart'))) {
           messages.push(target);
           target = target.nextElementSibling;
         }
@@ -3642,7 +3690,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         const messageIds = [];
         for (let i = 0; i < messages.length; i++) if (messages[i] && messages[i].messageId) messageIds.push(messages[i].messageId);
         if (!messageIds.length) return;
-        ZeresPluginLibrary.DCM.openContextMenu(
+        BdApi.ContextMenu.open(
           e,
           this.buildMenu([
             {
@@ -3660,8 +3708,8 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
                       result += `> ${record.message.content.replace(/\n/g, '\n> ')}\n`;
                     }
                     navigator.clipboard.writeText(result)
-                      .then(_ => this.showToast('Copied!', { type: 'success' }))
-                      .catch(_ => this.showToast('Failed to copy!', { type: 'error' }));
+                      .then(_ => BdApi.UI.showToast('Copied!', { type: 'success' }))
+                      .catch(_ => BdApi.UI.showToast('Failed to copy!', { type: 'error' }));
                   }
                 },
                 {
@@ -3690,7 +3738,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         if (!this.menu.deleteKeyDown) return;
         const messages = [element];
         let target = element.nextElementSibling;
-        while (target && target.classList && !target.classList.contains(XenoLib.getSingleClass('systemMessage groupStart'))) {
+        while (target && target.classList && !target.classList.contains(this.getSingleClass('systemMessage groupStart'))) {
           messages.push(target);
           target = target.nextElementSibling;
         }
@@ -3709,14 +3757,14 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         this.refilterMessages(); // I don't like calling that, maybe figure out a way to animate it collapsing on itself smoothly
         this.saveData();
       });
-      new ZeresPluginLibrary.Tooltip(timestampEl, 'Sent at ' + this.tools.createMomentObject(message.timestamp).format('LLLL'), { side: 'top' });
+      BdApi.UI.createTooltip(timestampEl, 'Sent at ' + this.tools.createMomentObject(message.timestamp).format('LLLL'), { side: 'top' });
     }
     const messageContext = e => {
       let target = e.target;
-      if (!target.classList.contains('mention') || (target.tagName == 'DIV' && target.classList.contains(ZeresPluginLibrary.WebpackModules.getByProps('imageErrorWrapper').imageErrorWrapper.split(/ /g)[0]))) {
+      if (!target.classList.contains('mention') || (target.tagName == 'DIV' && target.classList.contains(Webpack.getByKeys('imageErrorWrapper').imageErrorWrapper.split(/ /g)[0]))) {
         let isMarkup = false;
         let isEdited = false;
-        let isBadImage = target.tagName == 'DIV' && target.classList == ZeresPluginLibrary.WebpackModules.getByProps('imageErrorWrapper').imageErrorWrapper;
+        let isBadImage = target.tagName == 'DIV' && target.classList == Webpack.getByKeys('imageErrorWrapper').imageErrorWrapper;
         if (!isBadImage) {
           while (target && (!target.classList || !(isMarkup = target.classList.contains(this.classes.markup)))) {
             if (target.classList && target.classList.contains(this.style.edited)) isEdited = target;
@@ -3749,8 +3797,8 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
                 action: () => {
                   this.closeContextMenu();
                   navigator.clipboard.writeText(editNum != -1 ? record.edit_history[editNum].content : record.message.content)
-                    .then(_ => this.showToast('Copied!', { type: 'success' }))
-                    .catch(_ => this.showToast('Failed to copy!', { type: 'error' }));
+                    .then(_ => BdApi.UI.showToast('Copied!', { type: 'success' }))
+                    .catch(_ => BdApi.UI.showToast('Failed to copy!', { type: 'error' }));
                 }
               },
               {
@@ -3761,8 +3809,8 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
                   const content = editNum != -1 ? record.edit_history[editNum].content : record.message.content;
                   const result = `> **${record.message.author.username}** | ${this.createTimeStamp(record.message.timestamp, true)}\n> ${content.replace(/\n/g, '\n> ')}`;
                   navigator.clipboard.writeText(result)
-                    .then(_ => this.showToast('Copied!', { type: 'success' }))
-                    .catch(_ => this.showToast('Failed to copy!', { type: 'error' }));
+                    .then(_ => BdApi.UI.showToast('Copied!', { type: 'success' }))
+                    .catch(_ => BdApi.UI.showToast('Failed to copy!', { type: 'error' }));
                 }
               }
             );
@@ -3777,7 +3825,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
                 this.invalidateChannelCache(record.message.channel_id); // good idea?
                 this.cacheChannelMessages(record.message.channel_id);
                 this.saveData();
-                this.showToast('Unhidden!', { type: 'success' });
+                BdApi.UI.showToast('Unhidden!', { type: 'success' });
               }
             });
           }
@@ -3790,7 +3838,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
                   this.closeContextMenu();
                   this.deleteEditedMessageFromRecord(messageId, editNum);
                   this.refilterMessages(); // I don't like calling that, maybe figure out a way to animate it collapsing on itself smoothly
-                  this.showToast('Deleted!', { type: 'success' });
+                  BdApi.UI.showToast('Deleted!', { type: 'success' });
                 }
               });
             }
@@ -3802,7 +3850,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
                   this.closeContextMenu();
                   record.edits_hidden = false;
                   this.saveData();
-                  this.showToast('Unhidden!', { type: 'success' });
+                  BdApi.UI.showToast('Unhidden!', { type: 'success' });
                 }
               });
             }
@@ -3839,8 +3887,8 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
               action: () => {
                 this.closeContextMenu();
                 navigator.clipboard.writeText(messageId)
-                  .then(_ => this.showToast('Copied!', { type: 'success' }))
-                  .catch(_ => this.showToast('Failed to copy!', { type: 'error' }));
+                  .then(_ => BdApi.UI.showToast('Copied!', { type: 'success' }))
+                  .catch(_ => BdApi.UI.showToast('Failed to copy!', { type: 'error' }));
               }
             },
             {
@@ -3849,12 +3897,12 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
               action: () => {
                 this.closeContextMenu();
                 navigator.clipboard.writeText(message.author.id)
-                  .then(_ => this.showToast('Copied!', { type: 'success' }))
-                  .catch(_ => this.showToast('Failed to copy!', { type: 'error' }));
+                  .then(_ => BdApi.UI.showToast('Copied!', { type: 'success' }))
+                  .catch(_ => BdApi.UI.showToast('Failed to copy!', { type: 'error' }));
               }
             }
           );
-          ZeresPluginLibrary.DCM.openContextMenu(
+          BdApi.ContextMenu.open(
             e,
             this.buildMenu([
               {
@@ -3873,7 +3921,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
       let target = e.target;
       let isMarkup = false;
       let isEdited = false;
-      let isBadImage = target.tagName == 'DIV' && target.classList == ZeresPluginLibrary.WebpackModules.getByProps('imageErrorWrapper').imageErrorWrapper;
+      let isBadImage = target.tagName == 'DIV' && target.classList == Webpack.getByKeys('imageErrorWrapper').imageErrorWrapper;
       if (!isBadImage) {
         while (!target.classList.contains('message-2qnXI6') && !(isMarkup = target.classList.contains(this.classes.markup))) {
           if (target.classList.contains(this.style.edited)) isEdited = target;
@@ -3915,14 +3963,14 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         }
         lastMessage = message;
         const markup = messageGroup.getElementsByClassName(this.classes.markup)[0];
-        const contentDiv = messageGroup.getElementsByClassName(XenoLib.getSingleClass('avatarDecoration messageContent'))[0];
+        const contentDiv = messageGroup.getElementsByClassName(this.getSingleClass('avatarDecoration messageContent'))[0];
         if (record && record.edit_history) {
           markup.classList.add(this.style.edited);
           for (let ii = 0; ii < record.edit_history.length; ii++) {
             const hist = record.edit_history[ii];
             const editedMarkup = this.formatMarkup(hist.content, message.channel_id);
             editedMarkup.insertAdjacentHTML('beforeend', `<time class="${this.multiClasses.edited}">(edited)</time>`); // TODO, change this
-            new ZeresPluginLibrary.Tooltip(editedMarkup, 'Edited at ' + (typeof hist.time === 'string' ? hist.time : this.createTimeStamp(hist.time)), { side: 'left' });
+            BdApi.UI.createTooltip(editedMarkup, 'Edited at ' + (typeof hist.time === 'string' ? hist.time : this.createTimeStamp(hist.time)), { side: 'left' });
             editedMarkup.classList.add(this.style.edited);
             editedMarkup.edit = ii;
             markup.appendChild(editedMarkup);
@@ -3942,7 +3990,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
           // const attachmentsContent = this.parseHTML(`<div class="${this.multiClasses.message.cozy.content}"></div>`);
           const attemptToUseCachedImage = (attachmentId, attachmentIdx, hidden, filename, width, height) => {
             const img = document.createElement('img');
-            img.classList = ZeresPluginLibrary.WebpackModules.getByProps('clickable').clickable;
+            img.classList = Webpack.getByKeys('clickable').clickable;
             img.messageId = messageId;
             img.idx = attachmentIdx;
             img.id = attachmentId; // USED FOR FINDING THE IMAGE THRU CONTEXT MENUS
@@ -3975,7 +4023,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
             });
             img.onerror = () => {
               const imageErrorWrapperDiv = document.createElement('div');
-              imageErrorWrapperDiv.classList = ZeresPluginLibrary.WebpackModules.getByProps('imageErrorWrapper').imageErrorWrapper;
+              imageErrorWrapperDiv.classList = Webpack.getByKeys('imageErrorWrapper').imageErrorWrapper;
               imageErrorWrapperDiv.messageId = messageId;
               contentDiv.replaceChild(imageErrorWrapperDiv, img);
             };
@@ -3988,7 +4036,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
             } else {
               if (!this.isImage(attachment.url)) return; // bruh
               const img = document.createElement('img');
-              img.classList = ZeresPluginLibrary.WebpackModules.getByProps('clickable').clickable;
+              img.classList = Webpack.getByKeys('clickable').clickable;
               img.messageId = messageId;
               img.id = attachment.id; // USED FOR FINDING THE IMAGE THRU CONTEXT MENUS
               img.idx = idx;
@@ -4018,7 +4066,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
               img.onerror = () => {
                 if (img.triedCache) {
                   const imageErrorWrapperDiv = document.createElement('div');
-                  imageErrorWrapperDiv.classList = ZeresPluginLibrary.WebpackModules.getByProps('imageErrorWrapper').imageErrorWrapper;
+                  imageErrorWrapperDiv.classList = Webpack.getByKeys('imageErrorWrapper').imageErrorWrapper;
                   imageErrorWrapperDiv.messageId = messageId;
                   contentDiv.replaceChild(imageErrorWrapperDiv, img);
                 }
@@ -4052,7 +4100,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         if (message.embeds && message.embeds.length && false) {
           const ddiv = document.createElement('div');
           // TODO: optimize
-          if (!this.populateParent.__embedcontainer) this.populateParent.__embedcontainer = this.safeGetClass(() => ZeresPluginLibrary.WebpackModules.getByProps('containerCozy', 'gifFavoriteButton').containerCozy, 'containerCozy');
+          if (!this.populateParent.__embedcontainer) this.populateParent.__embedcontainer = this.safeGetClass(() => Webpack.getByKeys('containerCozy', 'gifFavoriteButton').containerCozy, 'containerCozy');
           ddiv.className = this.populateParent.__embedcontainer;
           const fuckme = new (ZeresPluginLibrary.WebpackModules.getByDisplayName('MessageAccessories'))({ channel: this.tools.getChannel(message.channel_id) || this.menu.randomValidChannel });
           for (const embed of message.embeds) {
@@ -4064,8 +4112,8 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
               allowFullScreen: true,
               autoPlayGif: true,
               backgroundOpacity: '',
-              className: ZeresPluginLibrary.WebpackModules.getByProps('embedWrapper', 'gifFavoriteButton').embedWrapper,
-              embed: ZeresPluginLibrary.WebpackModules.getByProps('sanitizeEmbed').sanitizeEmbed(message.channel_id, message.id, embed),
+              className: Webpack.getByKeys('embedWrapper', 'gifFavoriteButton').embedWrapper,
+              embed: Webpack.getByKeys('sanitizeEmbed').sanitizeEmbed(message.channel_id, message.id, embed),
               hideMedia: false,
               inlineGIFV: true,
               maxMediaHeight: 300,
@@ -4075,11 +4123,11 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
               suppressEmbed: false,
               renderTitle: fuckme.renderEmbedTitle.bind(fuckme),
               renderDescription: fuckme.renderEmbedDescription.bind(fuckme),
-              renderLinkComponent: ZeresPluginLibrary.WebpackModules.getByProps('defaultRenderLinkComponent').defaultRenderLinkComponent,
-              renderImageComponent: ZeresPluginLibrary.WebpackModules.getByProps('renderImageComponent').renderImageComponent,
-              renderVideoComponent: ZeresPluginLibrary.WebpackModules.getByProps('renderVideoComponent').renderVideoComponent,
-              renderAudioComponent: ZeresPluginLibrary.WebpackModules.getByProps('renderAudioComponent').renderAudioComponent,
-              renderMaskedLinkComponent: ZeresPluginLibrary.WebpackModules.getByProps('renderMaskedLinkComponent').renderMaskedLinkComponent
+              renderLinkComponent: Webpack.getByKeys('defaultRenderLinkComponent').defaultRenderLinkComponent,
+              renderImageComponent: Webpack.getByKeys('renderImageComponent').renderImageComponent,
+              renderVideoComponent: Webpack.getByKeys('renderVideoComponent').renderVideoComponent,
+              renderAudioComponent: Webpack.getByKeys('renderAudioComponent').renderAudioComponent,
+              renderMaskedLinkComponent: Webpack.getByKeys('renderMaskedLinkComponent').renderMaskedLinkComponent
             };
             ZeresPluginLibrary.DiscordModules.ReactDOM.render(React.createElement(ZeresPluginLibrary.WebpackModules.getByDisplayName('Embed'), embedBase), ddiv);
           }
@@ -4089,7 +4137,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
         //messageContent.appendChild(divParent);
         parent.appendChild(messageGroup);
       } catch (err) {
-        ZeresPluginLibrary.Logger.stacktrace(this.getName(), 'Error in populateParent', err);
+        Logger.stacktrace(this.getName(), 'Error in populateParent', err);
       }
     };
     let i = 0;
@@ -4212,7 +4260,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
           const message = this.getMessageAny(x);
           if (!message) return false;
           const channel = this.tools.getChannel(message.channel_id);
-          const member = ZeresPluginLibrary.DiscordModules.GuildMemberStore.getMember(message.guild_id || (channel && channel.guild_id), message.author.id);
+          const member = BdApi.Webpack.Stores.GuildMemberStore.getMember(message.guild_id || (channel && channel.guild_id), message.author.id);
           return message.author.id == filter || message.author.username.toLowerCase().includes(filter.toLowerCase()) || (member && member.nick && member.nick.toLowerCase().includes(filter.toLowerCase()));
         });
 
@@ -4222,7 +4270,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
             messages = messages.filter(x => {
               const message = this.getMessageAny(x);
               if (!message) return false;
-              if (Array.isArray(message.attachments)) if (message.attachments.some(({ filename }) => ZeresPluginLibrary.DiscordModules.DiscordConstants.IMAGE_RE.test(filename))) return true;
+              if (Array.isArray(message.attachments)) if (message.attachments.some(({ filename }) => /\.(png|jpe?g|webp|gif)$/i.test(filename))) return true;
               if (Array.isArray(message.embeds)) return message.embeds.some(({ image }) => !!image);
               return false;
             });
@@ -4258,7 +4306,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
   // >>-|| HEADER ||-<<
   openTab(tab) {
     const tabBar = document.getElementById(this.style.menuTabBar);
-    if (!tabBar) return this.showToast(`Error switching to tab ${tab}!`, { type: 'error', timeout: 3000 });
+    if (!tabBar) return BdApi.UI.showToast(`Error switching to tab ${tab}!`, { type: 'error', timeout: 3000 });
     tabBar.querySelector(`.${this.style.tabSelected}`).classList.remove(this.style.tabSelected);
     tabBar.querySelector('#' + tab).classList.add(this.style.tabSelected);
     this.menu.selectedTab = tab;
@@ -4267,7 +4315,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
   createHeader() {
     if (!this.createHeader.classes || this.createHeader.classes.__errored) {
       try {
-        const TabBarStuffs = ZeresPluginLibrary.WebpackModules.getByProps('body', 'tabBar');
+        const TabBarStuffs = Webpack.getByKeys('body', 'tabBar');
         this.createHeader.classes = {
           itemTabBarItem: this.style.tabBarItem,
           tabBarContainer: this.style.tabBarContainer,
@@ -4310,7 +4358,7 @@ https://astranika.com/bd/download?plugin=1XenoLib`, {
           inputDefaultMultiInputField: this.style.input,
           questionMark: this.style.questionMark,
           icon: this.style.questionMark,
-          focused: ZeresPluginLibrary.WebpackModules.getByProps('focused').focused.split(/ /g),
+          focused: Webpack.getByKeys('focused').focused.split(/ /g),
           questionMarkSingle: this.style.questionMark
         }
       } catch {
@@ -4378,7 +4426,7 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
             }
           }, helpText
           ),
-          React.createElement(XenoLib.ReactComponents.Button, {
+          React.createElement(BdApi.Components.Button, {
             onClick: _ => this.showLoggerHelpModal()
           }, 'Logger help'
           )
@@ -4388,7 +4436,7 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
           cancelText: null,
         });
     });
-    new ZeresPluginLibrary.Tooltip(helpButton, 'Help!', { side: 'top' });
+    BdApi.UI.createTooltip(helpButton, 'Help!', { side: 'top' });
     return textBox;
   }
   // >>-|| MENU MODAL CREATION ||-<<
@@ -4459,9 +4507,9 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
       {
         confirmText: 'Clear log',
         cancelText: 'Sort direction: ' + (!this.settings.reverseOrder ? 'new - old' : 'old - new'),
-        header: ZeresPluginLibrary.ReactTools.createWrappedElement([this.createTextBox(), this.createHeader()]),
+        header: React.createElement(BdApi.ReactUtils.wrapElement([this.createTextBox(), this.createHeader()])),
         className: this.style.menuModalLarge,
-        children: [ZeresPluginLibrary.ReactTools.createWrappedElement([messagesDIV])],
+        children: [React.createElement(BdApi.ReactUtils.wrapElement([messagesDIV]))],
         onCancel: onChangeOrder,
         onConfirm: onClearLog,
         onClose: _ => { },
@@ -4470,7 +4518,7 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
         ref: e => {
           if (!e) return;
           /* advanced tech! */
-          const stateNode = ZeresPluginLibrary.Utilities.getNestedProp(e, '_reactInternalFiber.return.return.stateNode.firstChild.childNodes.1.firstChild');
+          const stateNode = BdApi.Utils.getNestedValue(e, '_reactInternalFiber.return.return.stateNode.firstChild.childNodes.1.firstChild');
           if (!stateNode) return;
           stateNode.addEventListener(
             'scroll',
@@ -4490,8 +4538,8 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
         this.refilterMessages();
       } catch (e) {
         if (loadAttempts > 4) {
-          XenoLib.Notifications.error(`Couldn't load menu messages! Report this issue to Lighty, error info is in console`, { timeout: 0 });
-          ZeresPluginLibrary.Logger.stacktrace(this.getName(), 'Failed loading menu', e);
+          BdApi.UI.showNotification({ title: this.getName(), content: `Couldn't load menu messages! Report this issue to Lighty, error info is in console`, type: 'error', duration: Infinity });
+          Logger.stacktrace(this.getName(), 'Failed loading menu', e);
           return;
         }
         setTimeout(loadMessages, 100);
@@ -4505,8 +4553,8 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
     const _this = this;
 
     this.unpatches.push(BdApi.ContextMenu.patch('message', (ret, props) => {
-      const menu = ZeresPluginLibrary.Utilities.getNestedProp(
-        ZeresPluginLibrary.Utilities.findInReactTree(ret, e => e && e.navId === 'message'),
+      const menu = BdApi.Utils.getNestedValue(
+        this.findInReactTree(ret, e => e && e.navId === 'message'),
         'children'
       );
       if (!Array.isArray(menu)) return;
@@ -4538,7 +4586,7 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
                 ML2: true // ignore ourselves lol, it's already deleted
                 // on a side note, probably does nothing if we don't ignore
               });
-              this.showToast('Hidden!', { type: 'success' });
+              BdApi.UI.showToast('Hidden!', { type: 'success' });
               record.delete_data.hidden = true;
               this.saveData();
             }
@@ -4549,7 +4597,7 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
             () => {
               if (idx !== -1) this.noTintIds.splice(idx, 1);
               else this.noTintIds.push(messageId);
-              this.showToast(idx !== -1 ? 'Added!' : 'Removed!', { type: 'success' });
+              BdApi.UI.showToast(idx !== -1 ? 'Added!' : 'Removed!', { type: 'success' });
             }
           );
         }
@@ -4686,7 +4734,7 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
           () => {
             this.settings.whitelist.push(id);
             this.saveSettings();
-            this.showToast('Added!', { type: 'success' });
+            BdApi.UI.showToast('Added!', { type: 'success' });
           }
         );
         addElement(
@@ -4694,7 +4742,7 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
           () => {
             this.settings.blacklist.push(id);
             this.saveSettings();
-            this.showToast('Added!', { type: 'success' });
+            BdApi.UI.showToast('Added!', { type: 'success' });
           }
         );
       } else if (whitelistIdx != -1) {
@@ -4703,7 +4751,7 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
           () => {
             this.settings.whitelist.splice(whitelistIdx, 1);
             this.saveSettings();
-            this.showToast('Removed!', { type: 'success' });
+            BdApi.UI.showToast('Removed!', { type: 'success' });
           }
         );
         addElement(
@@ -4712,7 +4760,7 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
             this.settings.whitelist.splice(whitelistIdx, 1);
             this.settings.blacklist.push(id);
             this.saveSettings();
-            this.showToast('Moved!', { type: 'success' });
+            BdApi.UI.showToast('Moved!', { type: 'success' });
           }
         );
       } else {
@@ -4721,7 +4769,7 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
           () => {
             this.settings.blacklist.splice(blacklistIdx, 1);
             this.saveSettings();
-            this.showToast('Removed!', { type: 'success' });
+            BdApi.UI.showToast('Removed!', { type: 'success' });
           }
         );
         addElement(
@@ -4730,7 +4778,7 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
             this.settings.blacklist.splice(blacklistIdx, 1);
             this.settings.whitelist.push(id);
             this.saveSettings();
-            this.showToast('Moved!', { type: 'success' });
+            BdApi.UI.showToast('Moved!', { type: 'success' });
           }
         );
       }
@@ -4741,15 +4789,15 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
           if (notifIdx === -1) this.settings.notificationBlacklist.push(id);
           else this.settings.notificationBlacklist.splice(notifIdx, 1);
           this.saveSettings();
-          this.showToast(notifIdx === -1 ? 'Added!' : 'Removed!', { type: 'success' });
+          BdApi.UI.showToast(notifIdx === -1 ? 'Added!' : 'Removed!', { type: 'success' });
         }
       );
     };
 
     this.unpatches.push(BdApi.ContextMenu.patch('channel-context', (ret, props) => {
       if (props.channel.type === 4) return; // categories
-      const menu = ZeresPluginLibrary.Utilities.getNestedProp(
-        ZeresPluginLibrary.Utilities.findInReactTree(ret, e => e && e.navId === 'channel-context'),
+      const menu = BdApi.Utils.getNestedValue(
+        this.findInReactTree(ret, e => e && e.navId === 'channel-context'),
         'children'
       );
       if (!Array.isArray(menu)) return;
@@ -4778,8 +4826,8 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
     }));
 
     this.unpatches.push(BdApi.ContextMenu.patch('guild-context', (ret, props) => {
-      const menu = ZeresPluginLibrary.Utilities.getNestedProp(
-        ZeresPluginLibrary.Utilities.findInReactTree(ret, e => e && e.navId === 'guild-context'),
+      const menu = BdApi.Utils.getNestedValue(
+        this.findInReactTree(ret, e => e && e.navId === 'guild-context'),
         'children'
       );
       if (!Array.isArray(menu)) return;
@@ -4809,8 +4857,8 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
     }));
 
     this.unpatches.push(BdApi.ContextMenu.patch('user-context', (ret, props) => {
-      const menu = ZeresPluginLibrary.Utilities.getNestedProp(
-        ZeresPluginLibrary.Utilities.findInReactTree(ret, e => e && e.navId === 'user-context'),
+      const menu = BdApi.Utils.getNestedValue(
+        this.findInReactTree(ret, e => e && e.navId === 'user-context'),
         'children'
       );
       if (!Array.isArray(menu)) return;
@@ -4850,8 +4898,8 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
     }));
 
     this.unpatches.push(BdApi.ContextMenu.patch('gdm-context', (ret, props) => {
-      const menu = ZeresPluginLibrary.Utilities.getNestedProp(
-        ZeresPluginLibrary.Utilities.findInReactTree(ret, e => e && e.navId === 'gdm-context'),
+      const menu = BdApi.Utils.getNestedValue(
+        this.findInReactTree(ret, e => e && e.navId === 'gdm-context'),
         'children'
       );
       if (!Array.isArray(menu)) return;
@@ -4880,8 +4928,8 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
     }));
 
     this.unpatches.push(BdApi.ContextMenu.patch('image-context', (ret, props) => {
-      const menu = ZeresPluginLibrary.Utilities.getNestedProp(
-        ZeresPluginLibrary.Utilities.findInReactTree(ret, e => e && e.navId === 'image-context'),
+      const menu = BdApi.Utils.getNestedValue(
+        this.findInReactTree(ret, e => e && e.navId === 'image-context'),
         'children'
       );
       if (!Array.isArray(menu)) return;
@@ -4924,9 +4972,9 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
                 if (!dir) return;
                 const attemptToUseCached = () => {
                   const srcFile = `${this.settings.imageCacheDir}/${attachmentId}${record.message.attachments[attachmentIdx].filename.match(/\.[0-9a-z]+$/)[0]}`;
-                  if (!this.nodeModules.fs.existsSync(srcFile)) return this.showToast('Image does not exist locally!', { type: 'error', timeout: 5000 });
+                  if (!this.nodeModules.fs.existsSync(srcFile)) return BdApi.UI.showToast('Image does not exist locally!', { type: 'error', timeout: 5000 });
                   this.nodeModules.fs.copyFileSync(srcFile, dir);
-                  this.showToast('Saved!', { type: 'success' });
+                  BdApi.UI.showToast('Saved!', { type: 'success' });
                 };
                 if (isCached) {
                   attemptToUseCached();
@@ -4937,7 +4985,7 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
                       req
                         .then(res => res.blob())
                         .then(blob => {
-                          this.nodeModules.fs.writeFile(dir, blob, () => this.showToast('Saved!', { type: 'success' }));
+                          this.nodeModules.fs.writeFile(dir, blob, () => BdApi.UI.showToast('Saved!', { type: 'success' }));
                         });
                     } else {
                       attemptToUseCached();
@@ -4957,9 +5005,9 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
           const { clipboard, nativeImage } = this.nodeModules.electron;
           const attemptToUseCached = () => {
             const srcFile = `${this.settings.imageCacheDir}/${attachmentId}${record.message.attachments[attachmentIdx].filename.match(/\.[0-9a-z]+$/)[0]}`;
-            if (!this.nodeModules.fs.existsSync(srcFile)) return this.showToast('Image does not exist locally!', { type: 'error', timeout: 5000 });
+            if (!this.nodeModules.fs.existsSync(srcFile)) return BdApi.UI.showToast('Image does not exist locally!', { type: 'error', timeout: 5000 });
             clipboard.write({ image: srcFile });
-            this.showToast('Copied!', { type: 'success' });
+            BdApi.UI.showToast('Copied!', { type: 'success' });
           };
           if (isCached) {
             attemptToUseCached();
@@ -4970,7 +5018,7 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
             this.nodeModules.request({ url: record.message.attachments[attachmentIdx].url, encoding: null }, (error, response, buffer) => {
               try {
                 if (error || response.statusCode != 200) {
-                  this.showToast('Failed to copy. Image may not exist. Attempting to use local image cache.', { type: 'error' });
+                  BdApi.UI.showToast('Failed to copy. Image may not exist. Attempting to use local image cache.', { type: 'error' });
                   attemptToUseCached();
                   return;
                 }
@@ -4982,7 +5030,7 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
                   clipboard.write({ image: file });
                   this.nodeModules.fs.unlinkSync(file);
                 }
-                this.showToast('Copied!', { type: 'success' });
+                BdApi.UI.showToast('Copied!', { type: 'success' });
               } catch (err) {
                 console.error('Failed to cached', err.message);
               }
@@ -5006,7 +5054,7 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
             this.invalidateChannelCache(record.message.channel_id); // good idea?
             this.cacheChannelMessages(record.message.channel_id);
             this.saveData();
-            this.showToast('Unhidden!', { type: 'success' });
+            BdApi.UI.showToast('Unhidden!', { type: 'success' });
           },
           this.obfuscatedClass('unhide-deleted')
         );
@@ -5019,7 +5067,7 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
             this.invalidateChannelCache(record.message.channel_id); // good idea?
             this.cacheChannelMessages(record.message.channel_id);
             this.saveData();
-            this.showToast('Unhidden!', { type: 'success' });
+            BdApi.UI.showToast('Unhidden!', { type: 'success' });
           },
           this.obfuscatedClass('unhide-edited')
         );
@@ -5067,783 +5115,6 @@ Pro tip: Right clicking the icon will filter the messages to the current channel
         }]
       }]));
     }));
-
-    return;
-    const Patcher = XenoLib.createSmartPatcher({ before: (moduleToPatch, functionName, callback, options = {}) => ZeresPluginLibrary.Patcher.before(this.getName(), moduleToPatch, functionName, callback, options), instead: (moduleToPatch, functionName, callback, options = {}) => ZeresPluginLibrary.Patcher.instead(this.getName(), moduleToPatch, functionName, callback, options), after: (moduleToPatch, functionName, callback, options = {}) => ZeresPluginLibrary.Patcher.after(this.getName(), moduleToPatch, functionName, callback, options), unpatchAll: () => ZeresPluginLibrary.Patcher.unpatchAll(this.getName()) });
-    const WebpackModules = ZeresPluginLibrary.WebpackModules;
-    const nativeImageContextMenuPatch = () => {
-      const mod = WebpackModules.find(e => e.default && (e.__powercordOriginal_default || e.default).displayName === 'NativeImageContextMenu');
-      if (!mod) return console.error('Failed to patch NativeImageContextMenu');
-      this.unpatches.push(
-        this.Patcher.after(
-          mod,
-          'default',
-          (_, [props], ret) => {
-            const newItems = [];
-            if (!this.menu.open) return;
-            const menu = ZeresPluginLibrary.Utilities.getNestedProp(
-              ZeresPluginLibrary.Utilities.findInReactTree(ret, e => e && e.type && e.type.displayName === 'Menu'),
-              'props.children'
-            );
-            if (!Array.isArray(menu)) return;
-            const addElement = (label, callback, id, options = {}) => newItems.push(XenoLib.createContextMenuItem(label, callback, id, options));
-            let matched;
-            let isCached = false;
-            if (!props.src) return;
-            if (props.src.startsWith('data:image/png')) {
-              const cut = props.src.substr(0, 100);
-              matched = cut.match(/;(\d+);(\d+);/);
-              isCached = true;
-            } else {
-              matched = props.src.match(/.*ments\/(\d+)\/(\d+)\//);
-              if (!matched) matched = props.src.match(/r8q6.png#(\d+),(\d+)/);
-              if (!matched) {
-                matched = props.src.match(/localhost:7474.*#(\d+),(\d+)/);
-                isCached = true;
-              }
-            }
-            if (!matched) return;
-            const channelId = matched[1];
-            const attachmentId = matched[2];
-            const element = document.getElementById(attachmentId);
-            if (!element) return;
-            const attachmentIdx = element.idx;
-            const record = this.getSavedMessage(element.messageId);
-            if (!record) return;
-            addElement(
-              'Save to Folder',
-              () => {
-                const { dialog } = this.nodeModules.electron.remote;
-                dialog
-                  .showSaveDialog({
-                    defaultPath: record.message.attachments[attachmentIdx].filename
-                  })
-                  .then(({ filePath: dir }) => {
-                    try {
-                      if (!dir) return;
-                      const attemptToUseCached = () => {
-                        const srcFile = `${this.settings.imageCacheDir}/${attachmentId}${record.message.attachments[attachmentIdx].filename.match(/\.[0-9a-z]+$/)[0]}`;
-                        if (!this.nodeModules.fs.existsSync(srcFile)) return this.showToast('Image does not exist locally!', { type: 'error', timeout: 5000 });
-                        this.nodeModules.fs.copyFileSync(srcFile, dir);
-                        this.showToast('Saved!', { type: 'success' });
-                      };
-                      if (isCached) {
-                        attemptToUseCached();
-                      } else {
-                        const req = this.nodeModules.request(record.message.attachments[attachmentIdx].url);
-                        req.on('response', res => {
-                          if (res.statusCode == 200) {
-                            req
-                              .pipe(this.nodeModules.fs.createWriteStream(dir))
-                              .on('finish', () => this.showToast('Saved!', { type: 'success' }))
-                              .on('error', () => this.showToast('Failed to save! No permissions.', { type: 'error', timeout: 5000 }));
-                          } else if (res.statusCode == 404) {
-                            attemptToUseCached();
-                          } else {
-                            attemptToUseCached();
-                          }
-                        });
-                      }
-                    } catch (err) {
-                      console.error('Failed saving', err.message);
-                    }
-                  });
-              },
-              this.obfuscatedClass('save-to')
-            );
-            addElement(
-              'Copy to Clipboard',
-              () => {
-                const { clipboard, nativeImage } = this.nodeModules.electron;
-                const attemptToUseCached = () => {
-                  const srcFile = `${this.settings.imageCacheDir}/${attachmentId}${record.message.attachments[attachmentIdx].filename.match(/\.[0-9a-z]+$/)[0]}`;
-                  if (!this.nodeModules.fs.existsSync(srcFile)) return this.showToast('Image does not exist locally!', { type: 'error', timeout: 5000 });
-                  clipboard.write({ image: srcFile });
-                  this.showToast('Copied!', { type: 'success' });
-                };
-                if (isCached) {
-                  attemptToUseCached();
-                } else {
-                  const path = this.nodeModules.path;
-                  const process = require('process');
-                  // ImageToClipboard by Zerebos
-                  this.nodeModules.request({ url: record.message.attachments[attachmentIdx].url, encoding: null }, (error, response, buffer) => {
-                    try {
-                      if (error || response.statusCode != 200) {
-                        this.showToast('Failed to copy. Image may not exist. Attempting to use local image cache.', { type: 'error' });
-                        attemptToUseCached();
-                        return;
-                      }
-                      if (process.platform === 'win32' || process.platform === 'darwin') {
-                        clipboard.write({ image: nativeImage.createFromBuffer(buffer) });
-                      } else {
-                        const file = path.join(process.env.HOME, 'ml2temp.png');
-                        this.nodeModules.fs.writeFileSync(file, buffer, { encoding: null });
-                        clipboard.write({ image: file });
-                        this.nodeModules.fs.unlinkSync(file);
-                      }
-                      this.showToast('Copied!', { type: 'success' });
-                    } catch (err) {
-                      console.error('Failed to cached', err.message);
-                    }
-                  });
-                }
-              },
-              this.obfuscatedClass('copy-to')
-            );
-            addElement(
-              'Jump to Message',
-              () => {
-                this.jumpToMessage(channelId, element.messageId, record.message.guild_id);
-              },
-              this.obfuscatedClass('jump-to')
-            );
-            if (record.delete_data && record.delete_data.hidden) {
-              addElement(
-                'Unhide Deleted Message',
-                () => {
-                  record.delete_data.hidden = false;
-                  this.invalidateChannelCache(record.message.channel_id); // good idea?
-                  this.cacheChannelMessages(record.message.channel_id);
-                  this.saveData();
-                  this.showToast('Unhidden!', { type: 'success' });
-                },
-                this.obfuscatedClass('unhide-deleted')
-              );
-            }
-            if (record.edit_history && record.edits_hidden) {
-              addElement(
-                'Unhide Message History',
-                () => {
-                  record.edits_hidden = false;
-                  this.invalidateChannelCache(record.message.channel_id); // good idea?
-                  this.cacheChannelMessages(record.message.channel_id);
-                  this.saveData();
-                  this.showToast('Unhidden!', { type: 'success' });
-                },
-                this.obfuscatedClass('unhide-edited')
-              );
-            }
-            addElement(
-              'Remove From Log',
-              () => {
-                this.deleteMessageFromRecords(element.messageId);
-                this.refilterMessages(); // I don't like calling that, maybe figure out a way to animate it collapsing on itself smoothly
-                this.saveData();
-                if (record.delete_data) this.dispatcher.dispatch({ type: 'MESSAGE_DELETE', id: messageId, channelId: channelId, ML2: true });
-                else this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE_CONTENT', id: messageId });
-              },
-              this.obfuscatedClass('remove')
-            );
-            if (!props.src.startsWith('https://i.clouds.tf/q2vy/r8q6.png')) {
-              addElement(
-                'Hide Image From Log',
-                () => {
-                  record.message.attachments[attachmentIdx].hidden = true;
-                  element.src = `https://i.clouds.tf/q2vy/r8q6.png#${channelId},${attachmentId}`;
-                  element.width = 200;
-                },
-                this.obfuscatedClass('hide-image')
-              );
-            } else {
-              addElement(
-                'Unhide Image From Log',
-                () => {
-                  record.message.attachments[attachmentIdx].hidden = false;
-                  const srcFile = `http://localhost:7474/${attachmentId}${record.message.attachments[attachmentIdx].filename.match(/\.[0-9a-z]+$/)[0]}#${channelId},${attachmentId}`;
-                  element.src = record.message.attachments[attachmentIdx].url === 'ERROR' ? srcFile : record.message.attachments[attachmentIdx].url;
-                  element.width = record.message.attachments[attachmentIdx].url === 'ERROR' ? 256 : this.clamp(record.message.attachments[attachmentIdx].width, 200, 650);
-                },
-                this.obfuscatedClass('unhide-image')
-              );
-            }
-            if (!newItems.length) return;
-            menu.push(XenoLib.createContextMenuGroup([XenoLib.createContextMenuSubMenu(this.settings.contextmenuSubmenuName, newItems, this.obfuscatedClass('mlv2'))]));
-          }
-        )
-      );
-    }
-    this.unpatches.push(XenoLib.listenLazyContextMenu('NativeImageContextMenu', nativeImageContextMenuPatch));
-
-    const messageContextPatch = () => {
-      const mod = WebpackModules.find(e => e.default && (e.__powercordOriginal_default || e.default).displayName === 'MessageContextMenu');
-      if (!mod) return console.error('[MessageLoggerV2] Failed to find MessageContextMenu');
-      this.unpatches.push(
-        this.Patcher.after(
-          mod,
-          'default',
-          (_, [props], ret) => {
-            const newItems = [];
-            const menu = ZeresPluginLibrary.Utilities.getNestedProp(
-              ZeresPluginLibrary.Utilities.findInReactTree(ret, e => e && e.type && e.type.displayName === 'Menu'),
-              'props.children'
-            );
-            if (!Array.isArray(menu)) return;
-            const addElement = (label, callback, id, options = {}) => newItems.push(XenoLib.createContextMenuItem(label, callback, id, options));
-            addElement('Open Logs', () => this.openWindow(), this.obfuscatedClass('open'));
-            const messageId = props.message.id;
-            const channelId = props.channel.id;
-            const record = this.messageRecord[messageId];
-            if (record) {
-              /*
-                      addElement('Show in menu', () => {
-                          this.menu.filter = `message:${messageId}`;
-                          this.openWindow();
-                      }); */
-              if (record.delete_data) {
-                const options = menu.find(m => m.props.children && m.props.children.length > 10);
-                options.props.children.splice(0, options.props.children.length);
-                addElement(
-                  'Hide Deleted Message',
-                  () => {
-                    this.dispatcher.dispatch({
-                      type: 'MESSAGE_DELETE',
-                      id: messageId,
-                      channelId: channelId,
-                      ML2: true // ignore ourselves lol, it's already deleted
-                      // on a side note, probably does nothing if we don't ignore
-                    });
-                    this.showToast('Hidden!', { type: 'success' });
-                    record.delete_data.hidden = true;
-                    this.saveData();
-                  },
-                  this.obfuscatedClass('hide-deleted')
-                );
-                const idx = this.noTintIds.indexOf(messageId);
-                addElement(
-                  `${idx !== -1 ? 'Add' : 'Remove'} Deleted Tint`,
-                  () => {
-                    if (idx !== -1) this.noTintIds.splice(idx, 1);
-                    else this.noTintIds.push(messageId);
-                    this.showToast(idx !== -1 ? 'Added!' : 'Removed!', { type: 'success' });
-                  },
-                  this.obfuscatedClass('change-tint')
-                );
-              }
-              if (record.edit_history) {
-                if (record.edits_hidden) {
-                  addElement(
-                    'Unhide Edits',
-                    () => {
-                      record.edits_hidden = false;
-                      this.saveData();
-                      this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE_CONTENT', id: messageId });
-                    },
-                    this.obfuscatedClass('unhide-edits')
-                  );
-                } else {
-                  let target = props.target;
-                  if (target) {
-                    while (target && target.className && target.className.indexOf(this.style.edited) === -1) {
-                      target = target.parentElement;
-                    }
-                    if (target) {
-                      if (!this.editModifiers[messageId]) {
-                        addElement(
-                          'Hide Edits',
-                          () => {
-                            record.edits_hidden = true;
-                            this.saveData();
-                            this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE_CONTENT', id: messageId });
-                          },
-                          this.obfuscatedClass('hide-edits')
-                        );
-                      }
-                      const editNum = target.getAttribute('editNum');
-                      if (this.editModifiers[messageId]) {
-                        addElement(
-                          `${this.editModifiers[messageId].noSuffix ? 'Show' : 'Hide'} (edited) Tag`,
-                          () => {
-                            this.editModifiers[messageId].noSuffix = true;
-                            this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE_CONTENT', id: messageId });
-                          },
-                          this.obfuscatedClass('change-edit-tag')
-                        );
-                        addElement(
-                          `Undo Show As Message`,
-                          () => {
-                            delete this.editModifiers[messageId];
-                            this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE_CONTENT', id: messageId });
-                          },
-                          this.obfuscatedClass('undo-show-as-message')
-                        );
-                      } else if (typeof editNum !== 'undefined' && editNum !== null) {
-                        addElement(
-                          'Show Edit As Message',
-                          () => {
-                            this.editModifiers[messageId] = { editNum };
-                            this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE_CONTENT', id: messageId });
-                          },
-                          this.obfuscatedClass('show-as-message')
-                        );
-                        addElement(
-                          'Delete Edit',
-                          () => {
-                            this.deleteEditedMessageFromRecord(messageId, parseInt(editNum));
-                            this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE_CONTENT', id: messageId });
-                          },
-                          this.obfuscatedClass('delete-edit'),
-                          { color: 'danger' }
-                        );
-                      }
-                    }
-                  }
-                }
-              }
-              if (record) {
-                addElement(
-                  'Remove From Log',
-                  () => {
-                    this.deleteMessageFromRecords(messageId);
-                    this.saveData();
-                    if (record.delete_data) {
-                      this.dispatcher.dispatch({
-                        type: 'MESSAGE_DELETE',
-                        id: messageId,
-                        channelId: channelId,
-                        ML2: true // ignore ourselves lol, it's already deleted
-                        // on a side note, probably does nothing if we don't ignore
-                      });
-                    } else {
-                      this.dispatcher.dispatch({ type: 'MLV2_FORCE_UPDATE_MESSAGE_CONTENT', id: messageId });
-                    }
-                  },
-                  this.obfuscatedClass('remove-from-log'),
-                  { color: 'danger' }
-                );
-              }
-            }
-            if (!newItems.length) return;
-            menu.push(XenoLib.createContextMenuGroup([XenoLib.createContextMenuSubMenu(this.settings.contextmenuSubmenuName, newItems, this.obfuscatedClass('mlv2'))]));
-          }
-        )
-      );
-      return true;
-    }
-    this.unpatches.push(XenoLib.listenLazyContextMenu('MessageContextMenu', messageContextPatch));
-
-    const handleWhiteBlackList_ = (newItems, id) => {
-      const addElement = (label, callback, id, options = {}) => newItems.push(XenoLib.createContextMenuItem(label, callback, id, options));
-      const whitelistIdx = this.settings.whitelist.findIndex(m => m === id);
-      const blacklistIdx = this.settings.blacklist.findIndex(m => m === id);
-      if (whitelistIdx == -1 && blacklistIdx == -1) {
-        addElement(
-          `Add to Whitelist`,
-          () => {
-            this.settings.whitelist.push(id);
-            this.saveSettings();
-            this.showToast('Added!', { type: 'success' });
-          },
-          this.obfuscatedClass('add-whitelist')
-        );
-        addElement(
-          `Add to Blacklist`,
-          () => {
-            this.settings.blacklist.push(id);
-            this.saveSettings();
-            this.showToast('Added!', { type: 'success' });
-          },
-          this.obfuscatedClass('add-blacklist')
-        );
-      } else if (whitelistIdx != -1) {
-        addElement(
-          `Remove From Whitelist`,
-          () => {
-            this.settings.whitelist.splice(whitelistIdx, 1);
-            this.saveSettings();
-            this.showToast('Removed!', { type: 'success' });
-          },
-          this.obfuscatedClass('remove-whitelist')
-        );
-        addElement(
-          `Move to Blacklist`,
-          () => {
-            this.settings.whitelist.splice(whitelistIdx, 1);
-            this.settings.blacklist.push(id);
-            this.saveSettings();
-            this.showToast('Moved!', { type: 'success' });
-          },
-          this.obfuscatedClass('move-blacklist')
-        );
-      } else {
-        addElement(
-          `Remove From Blacklist`,
-          () => {
-            this.settings.blacklist.splice(blacklistIdx, 1);
-            this.saveSettings();
-            this.showToast('Removed!', { type: 'success' });
-          },
-          this.obfuscatedClass('remove-blacklist')
-        );
-        addElement(
-          `Move to Whitelist`,
-          () => {
-            this.settings.blacklist.splice(blacklistIdx, 1);
-            this.settings.whitelist.push(id);
-            this.saveSettings();
-            this.showToast('Moved!', { type: 'success' });
-          },
-          this.obfuscatedClass('move-whitelist')
-        );
-      }
-      const notifIdx = this.settings.notificationBlacklist.indexOf(id);
-      addElement(
-        `${notifIdx === -1 ? 'Add To' : 'Remove From'} Notification Blacklist`,
-        () => {
-          if (notifIdx === -1) this.settings.notificationBlacklist.push(id);
-          else this.settings.notificationBlacklist.splice(notifIdx, 1);
-          this.saveSettings();
-          this.showToast(notifIdx === -1 ? 'Added!' : 'Removed!', { type: 'success' });
-        },
-        this.obfuscatedClass('change-notif-blacklist')
-      );
-    };
-
-    const loggerIdentifier = this.randomString();
-    const channelListTextChannelContextMenuPatch = (fmod) => {
-      const mods = WebpackModules.findAll(e => (e.default === fmod || (e.default && e.default.__originalFunction === fmod)) && (e[loggerIdentifier] === undefined && (e[loggerIdentifier] = true)));
-      if (!mods) return;
-      const _this = this;
-      function ChannelListTextChannelContextMenu(props) {
-        const ret = props[MLV2_TYPE_L3](props);
-        try {
-          if (props.channel && props.channel.type === 4) return ret; // no lol, categories are unsupported
-          const newItems = [];
-          const menu = ZeresPluginLibrary.Utilities.getNestedProp(
-            ZeresPluginLibrary.Utilities.findInReactTree(ret, e => e && e.type && e.type.displayName === 'Menu'),
-            'props.children'
-          );
-          if (!Array.isArray(menu)) return ret;
-          const addElement = (label, callback, id, options = {}) => newItems.push(XenoLib.createContextMenuItem(label, callback, id, options));
-          addElement('Open Logs', () => _this.openWindow(), _this.obfuscatedClass('open'));
-          addElement(
-            `Open Log For Channel`,
-            () => {
-              _this.menu.filter = `channel:${props.channel.id}`;
-              _this.openWindow();
-            },
-            _this.obfuscatedClass('open-channel')
-          );
-          handleWhiteBlackList(newItems, props.channel.id);
-          if (!newItems.length) return ret;
-          menu.push(XenoLib.createContextMenuGroup([XenoLib.createContextMenuSubMenu(_this.settings.contextmenuSubmenuName, newItems, _this.obfuscatedClass('mlv2'))]));
-        } catch (err) {
-          console.error('[MessageLoggerV2] Failed to patch Channel Context Menu', err);
-        }
-        return ret;
-      }
-      function NormalMenu(props) {
-        const ret = props[MLV2_TYPE_L2](props);
-        try {
-          if (ret.type.displayName !== 'NormalMenu') return ret;
-          if (!ChannelListTextChannelContextMenu.displayName) Object.assign(ChannelListTextChannelContextMenu, ret.type);
-          ret.props[MLV2_TYPE_L3] = ret.type;
-          ChannelListTextChannelContextMenu.__originalFunction = ret.type;
-          ret.type = ChannelListTextChannelContextMenu;
-        } catch (err) {
-          console.error('[MessageLoggerV2] Failed to patch Normal Menu', err);
-        }
-        return ret;
-      }
-      function ChannelListTextChannelContextMenuWrapper(props) {
-        const ret = props[MLV2_TYPE_L1](props);
-        try {
-          if (!NormalMenu.displayName) Object.assign(NormalMenu, ret.props.children.type);
-          ret.props.children.props[MLV2_TYPE_L2] = ret.props.children.type;
-          NormalMenu.__originalFunction = ret.props.children.type;
-          ret.props.children.type = NormalMenu;
-        } catch (err) {
-          console.error('[MessageLoggerV2] Failed to patch ChannelListTextChannelContextMenuWrapper', err);
-        }
-        return ret;
-      }
-      mods.forEach(mod => {
-        this.unpatches.push(
-          this.Patcher.after(
-            mod,
-            'default',
-            (_, __, ret) => {
-              const damnedmenu = ret.props.children;
-              if (damnedmenu.props[MLV2_TYPE_L1]) return;
-              if (!ChannelListTextChannelContextMenuWrapper.displayName) Object.assign(ChannelListTextChannelContextMenuWrapper, damnedmenu.type);
-              damnedmenu.props[MLV2_TYPE_L1] = damnedmenu.type;
-              ChannelListTextChannelContextMenuWrapper.__originalFunction = damnedmenu.type;
-              damnedmenu.type = ChannelListTextChannelContextMenuWrapper;
-            }
-          )
-        )
-      });
-      return true;
-    }
-    this.unpatches.push(XenoLib.listenLazyContextMenu('ChannelListTextChannelContextMenu', channelListTextChannelContextMenuPatch, true));
-
-    const guildContextMenu = () => {
-      const mod = WebpackModules.find(e => e.default && (e.__powercordOriginal_default || e.default).displayName === 'GuildContextMenuWrapper');
-      if (!mod) return console.error('[MessageLoggerV2] GuildContextMenu not found');
-
-      const _this = this;
-      function GuildContextMenu(props) {
-        try {
-          const ret = props[MLV2_TYPE_L1](props);
-
-          const newItems = [];
-          const menu = ZeresPluginLibrary.Utilities.getNestedProp(
-            ZeresPluginLibrary.Utilities.findInReactTree(ret, e => e && e.type && e.type.displayName === 'Menu'),
-            'props.children'
-          );
-          if (!Array.isArray(menu)) return;
-          const addElement = (label, callback, id, options = {}) => newItems.push(XenoLib.createContextMenuItem(label, callback, id, options));
-          addElement(
-            'Open Logs',
-            () => {
-              _this.openWindow();
-            },
-            _this.obfuscatedClass('open')
-          );
-          addElement(
-            `Open Log For Guild`,
-            () => {
-              _this.menu.filter = `guild:${props.guild.id}`;
-              _this.openWindow();
-            },
-            _this.obfuscatedClass('open-guild')
-          );
-          handleWhiteBlackList(newItems, props.guild.id);
-          if (!newItems.length) return;
-          menu.push(XenoLib.createContextMenuGroup([XenoLib.createContextMenuSubMenu(_this.settings.contextmenuSubmenuName, newItems, _this.obfuscatedClass('mlv2'))]));
-          return ret;
-        } catch (err) {
-          ZeresPluginLibrary.Logger.warn(_this.getName(), 'Failed to run patch GuildContextMenu', err);
-          try {
-            const ret = props[MLV2_TYPE_L1](props);
-            return ret;
-          } catch (err) {
-            ZeresPluginLibrary.Logger.error(_this.getName(), 'Failed to original only GuildContextMenu', err);
-            return null;
-          }
-        }
-      }
-      GuildContextMenu.displayName = 'GuildContextMenu';
-      this.unpatches.push(
-        this.Patcher.after(
-          mod,
-          'default',
-          (_, __, { props: { children } }) => {
-            if (children.props[MLV2_TYPE_L1]) return;
-            if (!GuildContextMenu.displayName) Object.assign(GuildContextMenu, children.type);
-            children.props[MLV2_TYPE_L1] = children.type;
-            GuildContextMenu.__originalFunction = children.type;
-            children.type = GuildContextMenu;
-          }
-        )
-      );
-      return true;
-    }
-    this.unpatches.push(XenoLib.listenLazyContextMenu('GuildContextMenuWrapper', guildContextMenu));
-
-    const guildChannelUserContextMenuPatch = (fmod) => {
-      const mod = WebpackModules.find(e => (e.default === fmod || (e.default && e.default.__originalFunction === fmod)));
-      if (!mod) return console.error('[MessageLoggerV2] GuildChannelUserContextMenu not found');
-      const _this = this;
-      function GuildChannelUserContextMenu(props) {
-        const ret = props[MLV2_TYPE_L2](props);
-        try {
-          const newItems = [];
-          const menu = ZeresPluginLibrary.Utilities.getNestedProp(
-            ZeresPluginLibrary.Utilities.findInReactTree(ret, e => e && e.type && e.type.displayName === 'Menu'),
-            'props.children'
-          );
-          if (!Array.isArray(menu)) return ret;
-          const addElement = (label, callback, id, options = {}) => newItems.push(XenoLib.createContextMenuItem(label, callback, id, options));
-          addElement(
-            'Open Logs',
-            () => {
-              _this.openWindow();
-            },
-            _this.obfuscatedClass('open')
-          );
-          addElement(
-            `Open Log For User`,
-            () => {
-              _this.menu.filter = `user:${props.user.id}`;
-              _this.openWindow();
-            },
-            _this.obfuscatedClass('open-user')
-          );
-          if (!newItems.length) return ret;
-          menu.push(XenoLib.createContextMenuGroup([XenoLib.createContextMenuSubMenu(_this.settings.contextmenuSubmenuName, newItems, _this.obfuscatedClass('mlv2'))]));
-        } catch (err) {
-          console.error(err);
-        }
-        return ret;
-      }
-      function GuildChannelUserContextMenuWrapper(props) {
-        const ret = props[MLV2_TYPE_L1](props);
-        try {
-          if (ret.props.children.props[MLV2_TYPE_L2]) return ret;
-          if (!GuildChannelUserContextMenu.displayName) Object.assign(GuildChannelUserContextMenu, ret.props.children.type);
-          ret.props.children.props[MLV2_TYPE_L2] = ret.props.children.type;
-          GuildChannelUserContextMenu.__originalFunction = ret.props.children.type;
-          ret.props.children.type = GuildChannelUserContextMenu;
-        } catch (err) {
-          console.error('[MessageLoggerV2] Failed to patch GuildChannelUserContextMenuWrapper', err);
-        }
-        return ret;
-      }
-      this.unpatches.push(
-        this.Patcher.after(
-          mod,
-          'default',
-          (_, __, ret) => {
-            const damnedmenu = ret.props.children;
-            if (damnedmenu.props[MLV2_TYPE_L1]) return;
-            if (!GuildChannelUserContextMenuWrapper.displayName) Object.assign(GuildChannelUserContextMenuWrapper, damnedmenu.type);
-            damnedmenu.props[MLV2_TYPE_L1] = damnedmenu.type;
-            GuildChannelUserContextMenuWrapper.__originalFunction = damnedmenu.type;
-            damnedmenu.type = GuildChannelUserContextMenuWrapper;
-          }
-        )
-      );
-      return true;
-    }
-    this.unpatches.push(XenoLib.listenLazyContextMenu('GuildChannelUserContextMenu', guildChannelUserContextMenuPatch));
-
-    const dmUserContextMenuPatch = (fmod) => {
-      const mod = WebpackModules.find(e => (e.default === fmod || (e.default && e.default.__originalFunction === fmod)));
-      if (!mod) return console.error('[MessageLoggerV2] DMUserContextMenu not found');
-      const _this = this;
-      function DMUserContextMenu(props) {
-        const ret = props[MLV2_TYPE_L2](props);
-        try {
-          const newItems = [];
-          const menu = ZeresPluginLibrary.Utilities.getNestedProp(
-            ZeresPluginLibrary.Utilities.findInReactTree(ret, e => e && e.type && e.type.displayName === 'Menu'),
-            'props.children'
-          );
-          if (!Array.isArray(menu)) return ret;
-          const addElement = (label, callback, id, options = {}) => newItems.push(XenoLib.createContextMenuItem(label, callback, id, options));
-          addElement(
-            'Open Logs',
-            () => {
-              _this.openWindow();
-            },
-            _this.obfuscatedClass('open')
-          );
-          addElement(
-            `Open Log For User`,
-            () => {
-              _this.menu.filter = `user:${props.user.id}`;
-              _this.openWindow();
-            },
-            _this.obfuscatedClass('open-user')
-          );
-          addElement(
-            `Open Log For DM`,
-            () => {
-              _this.menu.filter = `channel:${props.channel.id}`;
-              _this.openWindow();
-            },
-            _this.obfuscatedClass('open-dm')
-          );
-          handleWhiteBlackList(newItems, props.channel.id);
-          if (!newItems.length) return;
-          menu.push(XenoLib.createContextMenuGroup([XenoLib.createContextMenuSubMenu(_this.settings.contextmenuSubmenuName, newItems, _this.obfuscatedClass('mlv2'))]));
-        } catch (err) {
-          console.error('[MessageLoggerV2] Error in DMUserContextMenu patch', err);
-        }
-        return ret;
-      }
-      function DMUserContextMenuWrapper(props) {
-        const ret = props[MLV2_TYPE_L1](props);
-        try {
-          if (!DMUserContextMenu.displayName) Object.assign(DMUserContextMenu, ret.props.children.type);
-          ret.props.children.props[MLV2_TYPE_L2] = ret.props.children.type;
-          DMUserContextMenu.__originalFunction = ret.props.children.type;
-          ret.props.children.type = DMUserContextMenu;
-        } catch (err) {
-          console.error('[MessageLoggerV2] Failed to patch DMUserContextMenuWrapper', err);
-        }
-        return ret;
-      }
-      this.unpatches.push(
-        this.Patcher.after(
-          mod,
-          'default',
-          (_, __, ret) => {
-            const damnedmenu = ret.props.children;
-            if (damnedmenu.props[MLV2_TYPE_L1]) return;
-            if (!DMUserContextMenuWrapper.displayName) Object.assign(DMUserContextMenuWrapper, damnedmenu.type);
-            damnedmenu.props[MLV2_TYPE_L1] = damnedmenu.type;
-            DMUserContextMenuWrapper.__originalFunction = damnedmenu.type;
-            damnedmenu.type = DMUserContextMenuWrapper;
-          }
-        )
-      );
-      return true;
-    }
-    this.unpatches.push(XenoLib.listenLazyContextMenu('DMUserContextMenu', dmUserContextMenuPatch));
-
-    const groupDMUserContextMenuPatch = (fmod) => {
-      const mod = WebpackModules.find(e => (e.default === fmod || (e.default && e.default.__originalFunction === fmod)));
-      if (!mod) return console.error('[MessageLoggerV2] GroupDMUserContextMenu not found');
-      const _this = this;
-      function GroupDMUserContextMenu(props) {
-        const ret = props[MLV2_TYPE_L2](props);
-        try {
-          const newItems = [];
-          const menu = ZeresPluginLibrary.Utilities.getNestedProp(
-            ZeresPluginLibrary.Utilities.findInReactTree(ret, e => e && e.type && e.type.displayName === 'Menu'),
-            'props.children'
-          );
-          if (!Array.isArray(menu)) return ret;
-          const addElement = (label, callback, id, options = {}) => newItems.push(XenoLib.createContextMenuItem(label, callback, id, options));
-          addElement('Open Logs', () => _this.openWindow(), _this.obfuscatedClass('open'));
-          addElement(
-            `Open Log For Channel`,
-            () => {
-              _this.menu.filter = `channel:${props.channel.id}`;
-              _this.openWindow();
-            },
-            _this.obfuscatedClass('open-channel')
-          );
-          handleWhiteBlackList(newItems, props.channel.id);
-          if (!newItems.length) return ret;
-          menu.push(XenoLib.createContextMenuGroup([XenoLib.createContextMenuSubMenu(_this.settings.contextmenuSubmenuName, newItems, _this.obfuscatedClass('mlv2'))]));
-        } catch (err) {
-          console.error('[MessageLoggerV2] Error in GroupDMUserContextMenu patch', err);
-        }
-        return ret;
-      }
-      function GroupDMUserContextMenuWrapper(props) {
-        const ret = props[MLV2_TYPE_L1](props);
-        try {
-          if (!GroupDMUserContextMenu.displayName) Object.assign(GroupDMUserContextMenu, ret.props.children.type);
-          ret.props.children.props[MLV2_TYPE_L2] = ret.props.children.type;
-          GroupDMUserContextMenu.__originalFunction = ret.props.children.type;
-          ret.props.children.type = GroupDMUserContextMenu;
-        } catch (err) {
-          console.error('[MessageLoggerV2] Failed to patch GroupDMUserContextMenuWrapper', err);
-        }
-        return ret;
-      }
-      this.unpatches.push(
-        this.Patcher.after(
-          mod,
-          'default',
-          (_, __, ret) => {
-            const damnedmenu = ret.props.children;
-            if (damnedmenu.props[MLV2_TYPE_L1]) return;
-            if (!GroupDMUserContextMenuWrapper.displayName) Object.assign(GroupDMUserContextMenuWrapper, damnedmenu.type);
-            damnedmenu.props[MLV2_TYPE_L1] = damnedmenu.type;
-            GroupDMUserContextMenuWrapper.__originalFunction = damnedmenu.type;
-            damnedmenu.type = GroupDMUserContextMenuWrapper;
-          }
-        )
-      );
-      return true;
-    };
-    this.unpatches.push(XenoLib.listenLazyContextMenu('GroupDMUserContextMenu', groupDMUserContextMenuPatch));
-
   }
   /* ==================================================-|| END CONTEXT MENU ||-================================================== */
 };
